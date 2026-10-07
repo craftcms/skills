@@ -1,4 +1,4 @@
-# Craft CMS & Commerce Skills
+# Craft CMS Skills
 
 [Agent Skills](https://github.com/agentskills/agentskills) for helping developers work with Craft CMS and Craft Commerce.
 
