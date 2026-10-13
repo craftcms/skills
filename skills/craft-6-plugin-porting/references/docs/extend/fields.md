@@ -1,0 +1,164 @@
+# Field Types
+
+Fields are wholly a Craft concept, and therefore isolated from many of the internal changes.
+The most significant differences are apt to be in how you register field types and field layout elements, and those classes’ validation rules.
+
+
+## Registration
+
+Add your field type classes to `Plugin::$fieldTypes` and they will be registered automatically.
+Outside a plugin, use the `CraftCms\Cms\Field\FieldTypes` registry:
+
+```php
+use CraftCms\Cms\Field\FieldTypes;
+
+public function boot(FieldTypes $fieldTypesRegistry): void
+{
+    $fieldTypesRegistry->register(PatternField::class);
+}
+```
+
+Field layout elements must be registered via the `CraftCms\Cms\FieldLayout\Events\FieldLayoutUIElementsResolving` event, as there is no corresponding plugin property.
+New field types do not typically need a dedicated field layout element—Craft automatically wraps every custom field instance in a `CraftCms\Cms\FieldLayout\LayoutElements\CustomField`.
+
+## Rules
+
+Depending on complexity, field types can define two sets of validation rules:
+
+- `getRules()` — The field’s own settings, set by a developer and stored in project config.
+- `getElementRules()` — Rules for the content stored by each instance of the field on an element, which get merged into the elements’ rules at runtime.
+
+> **Tip:**
+> The adapter takes care of wrapping Yii validation rules from the corresponding legacy `defineRules()` and `getElementValidationRules()` methods.
+
+
+See [validation.md](validation.md).
+
+## Settings
+
+Field settings are defined with the new [form builder](forms.md).
+
+Implement a `settingsForm()` method, and return a `CraftCms\Cms\Form\Form` fragment:
+
+```php
+use CraftCms\Cms\Form\Controls\Text;
+use CraftCms\Cms\Form\Form;
+use CraftCms\Cms\Form\FormContext;
+use CraftCms\Cms\Form\Nodes\Field as FormField;
+
+use function CraftCms\Cms\t;
+
+public function settingsForm(FormContext $context = new FormContext): ?Form
+{
+    return Form::make([
+        FormField::make(t('Validation pattern'))
+            ->instructions(t('The regular expression that the field’s value must match.', category: 'my-plugin'))
+            ->control(Text::make('expression')->value($this->expression)),
+    ]);
+}
+```
+
+Every time Craft calls `settingsForm()`, the field class is hydrated with the current input (valid or not).
+Complex field settings can be hidden until they are relevant, using normal control flow:
+
+```php
+$validationStringColumns = [
+    'value' => [
+        'heading' => t('Value', category: 'my-plugin'),
+        'type' => 'singleline',
+    ],
+];
+
+$form = Form::make([
+    FormField::make(t('Required strings'), Table::make('requiredSubstrings')
+        ->columns($validationStringColumns)
+        ->allowAdd()
+        ->allowDelete()
+        ->allowReorder())
+        ->instructions(t('One or more strings that must be present in the value.', category: 'my-plugin')),
+    FormField::make(t('Forbidden strings'), Table::make('forbiddenSubstrings')
+        ->columns($validationStringColumns)
+        ->allowAdd()
+        ->allowDelete()
+        ->allowReorder())
+        ->instructions(t('One or more strings that are not allowed to be present in the value.', category: 'my-plugin')),
+]);
+
+// Allow direct control using regular expressions if the developer has not added any required/forbidden strings:
+if (empty($this->requiredSubstrings) && empty($this->forbiddenSubstrings)) {
+    $form->add(
+        FormField::make(t('Validation pattern'), Text::make('expression')->value($this->expression))
+            ->instructions(t('The regular expression that the field’s value must match.', category: 'my-plugin')),
+    );
+}
+
+return $form;
+```
+
+> **Tip:**
+> The [adapter](adapter.md) automatically injects HTML from your existing `getSettingsHtml()` method into a shim so they remain compatible with the form builder.
+
+
+## Input
+
+Element forms also use the new [form builder](forms.md), but you are only responsible for the [control](forms.md#controls) part of the field.
+Craft wraps the `CraftCms\Cms\Form\Contracts\Control` instance returned from your `formControl()` method in a complete field, using its configured label, instructions, and so on:
+
+```php
+public function formControl(FieldContext $context): Control
+{
+    return Choice::make($context->path)
+        ->options([
+            ['label' => t('Win'), 'value' => 'win', 'icon' => 'award'],
+            ['label' => t('Loss'), 'value' => 'loss', 'icon' => 'face-frown'],
+        ])
+        ->multiple(static::$multi)
+        ->value($this->encodeValue($context->value));
+}
+```
+
+Like [settings](#settings), your input is rebuilt by the back-end whenever its value changes.
+This means you can react to the current value (`$context->value`) and conditionally expose additional controls, instructions, or settings without registering any JavaScript.
+
+> **Warning:**
+> Inline editing is still handled with plain HTML output, so your fields’ `inputHtml()` remains relevant.
+> This may change during the alpha.
+
+
+## Query Handling
+
+In most cases, Craft can figure out how to translate query conditions based on your field’s `dbType()` return value.
+Fields that store non-scalar values, select data from a separate table, or  may require intervention, using `modifyQuery()`.
+This replaces `queryCondition()` in earlier versions of Craft, and requires a signature update.
+You now operate directly on the query object, rather than returning an array of conditions:
+
+```php
+public static function modifyQuery(
+    Builder $query,
+    array $instances,
+    mixed $value,
+    ElementQueryInterface $elementQuery
+): void
+{
+    // Normalize the incoming `$value` so it can be applied as params on the query:
+    if (! is_array($value)) {
+        $value = [
+            'amount' => $value,
+        ];
+    }
+
+    if (! isset($value['currency'])) {
+        $value['currency'] = $this->defaultCurrency;
+    }
+
+    // Build each param using the nested keys:
+    $query->whereNumericParam(static::valueSql($instances, 'amount'), $value['amount']);
+    $query->whereParam(static::valueSql($instances, 'currency'), $value['currency']);
+}
+```
+
+You can return early or `throw` to reject invalid values and skip the param altogether.
+Note that Craft quietly swallows these exceptions, so it can be helpful for developers to log a message about the improper use.
+
+> **Tip:**
+> Craft adds a number of methods to Laravel’s query builder (like `whereParam()`, in the example), in `CraftCms\Cms\Database\DatabaseServiceProvider`, which correspond with the old `Db::parseParam()` helper methods.
