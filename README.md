@@ -2,6 +2,12 @@
 
 [Agent Skills](https://github.com/agentskills/agentskills) for helping developers work with Craft CMS and Craft Commerce.
 
+## Skills
+
+| Skill | Description |
+| --- | --- |
+| [`craft-6-plugin-porting`](skills/craft-6-plugin-porting/SKILL.md) | Walks a developer and their agent through porting a Craft 5 (Yii 2) plugin or module to Craft 6 (Laravel) in stages, from running on 6.x with the Yii 2 adapter to native Laravel code. Craft 6 is in alpha, so the bundled docs snapshot may lag behind. |
+
 ## Structure
 
 Each skill lives in its own directory under `skills/`:
