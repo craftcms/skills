@@ -25,7 +25,37 @@ fi
 globs=(
   --glob '*.php' --glob '*.twig' --glob '*.html' --glob 'composer.json'
   --glob '!vendor/**' --glob '!node_modules/**' --glob '!.git/**'
+  --glob '!ecs.php' --glob '!rector.php'
 )
+
+# The plugin's own PSR-4 namespaces (read from composer.json). A Craft 5 plugin often lives in `craft\myplugin`,
+# so imports of its own classes must not count as Craft or Yii imports.
+own_namespaces=()
+if [ -f "$target/composer.json" ] && command -v python3 >/dev/null 2>&1; then
+  while IFS= read -r ns; do
+    [ -n "$ns" ] && own_namespaces+=("$ns")
+  done < <(python3 - "$target/composer.json" <<'PY' 2>/dev/null || true
+import json, sys
+data = json.load(open(sys.argv[1]))
+for section in ('autoload', 'autoload-dev'):
+    for ns in (data.get(section, {}).get('psr-4', {}) or {}):
+        print(ns.rstrip('\\'))
+PY
+)
+fi
+
+# without_own_namespaces: drop `use <own namespace>\...` lines from matches read on stdin.
+without_own_namespaces() {
+  local out ns
+  out=$(cat)
+  if [ "${#own_namespaces[@]}" -gt 0 ]; then
+    for ns in "${own_namespaces[@]}"; do
+      out=$(printf '%s\n' "$out" | grep -vF -e "use ${ns}\\" || true)
+    done
+  fi
+  [ -n "$out" ] && printf '%s\n' "$out"
+  return 0
+}
 
 labels=()
 refs=()
@@ -76,6 +106,10 @@ add 'Other yii/craft imports' required-changes.md \
 
 # matches <pattern> <import specs>: print file:line matches, by FQN pattern and by imported short name.
 matches() {
+  { matches_raw "$@"; } | without_own_namespaces
+}
+
+matches_raw() {
   local pattern="$1" specs="$2" pair import short file
   local pairs=() files=()
   rg --no-heading --line-number "${globs[@]}" -e "$pattern" "$target" 2>/dev/null || true
