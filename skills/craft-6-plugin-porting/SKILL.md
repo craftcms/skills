@@ -148,7 +148,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 
 - A strict horizontal port first, with restructuring afterwards.
 - Initialization belongs in `boot()`, because `register()` runs too early for events.
-- Never instantiate services directly. Resolve them from the container.
+- Never instantiate services directly, and don't use static lookups such as `Plugin::getInstance()` or `Craft::$app` in ported code. Inject what you need (`Settings $settings`, `Sections $sections`) or resolve it with `app(ClassName::class)`. Bind the plugin's settings class in `boot()` so classes can type-hint it ([services-and-di.md](references/services-and-di.md)).
 - Keep old classes loadable where the database, project config or other code may reference them.
 - Do not use the adapter's own deprecation API in new code. Use `CraftCms\Cms\Support\Facades\Deprecator::log()`.
 - Do not publish the plugin's regular migrations into the app, because they would run twice.

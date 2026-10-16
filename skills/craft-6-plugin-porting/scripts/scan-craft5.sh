@@ -75,6 +75,8 @@ add 'Plugin class and settings' plugin-class.md \
   'craft\\base\\Plugin:Plugin'
 add 'Yii service locator' services-and-di.md \
   'Craft::\$app|Yii::\$app|Craft::createObject|Yii::createObject'
+add 'Static lookups (use container)' services-and-di.md \
+  '::getInstance\(\)'
 add 'Events' events-and-registries.md \
   'Event::on\(|EVENT_[A-Z_]+|RegisterComponentTypesEvent|yii\\base\\Event|->trigger\(|hasEventHandlers' \
   'craft\\events\\CancelableEvent:CancelableEvent,yii\\base\\Event:Event'

@@ -63,7 +63,7 @@ Craft exposes its facades to Twig. See [templates-and-twig.md](templates-and-twi
 | Application config tree / component config arrays | `config(...)` read at runtime in the service, defaults from general config |
 | `Craft::$app->getView()->renderTemplate(..., View::TEMPLATE_MODE_SITE)` | `TemplateMode::with(TemplateMode::Site, fn () => ...)` or `template(..., TemplateMode::Site)` |
 | Yii behaviors | Macros. See [templates-and-twig.md](templates-and-twig.md) and [models-and-validation.md](models-and-validation.md) |
-| `Plugin::getInstance()->getSettings()` | Still works. Also `app(MyPlugin::class)->getSettings()` |
+| `Plugin::getInstance()->getSettings()` | Inject the settings class (bound in the container, see below), or `app(MyPlugin::class)->getSettings()`. Don't call `Plugin::getInstance()` in ported code |
 
 ## Typical helper moves
 
@@ -83,3 +83,26 @@ Most static helper classes moved to the `CraftCms\Cms\Support` namespace. Do not
 | `Craft::$app->getView()->renderTemplate()` | `template()` |
 
 Always check the installed source for the exact class and method before relying on a row: these were confirmed on 6.0.0-alpha.20.
+
+## Don't use static lookups: let the container hand things over
+
+`Plugin::getInstance()` and `Craft::$app` are the service-locator habit. In ported code, get the plugin, its settings and its services from the container:
+
+```php
+// Bind the settings once, in the plugin's boot():
+public function boot(): void
+{
+    $this->app->singleton(Settings::class, fn () => $this->getSettings());
+}
+
+// Then type-hint what you need. Laravel injects it:
+public function __invoke(Request $request, Sections $sections, Elements $elements, Settings $settings): Response
+{
+    $sectionSettings = $settings->getSection($section->uid);
+}
+```
+
+- The plugin itself resolves from the container as the same booted instance: `app(MyPlugin::class)` (checked: it is identical to `MyPlugin::getInstance()`, with its handle and settings). Use it only where injection isn't possible (a static method, a closure in `boot()`).
+- Inject into controller `__invoke()`/`handle()` methods, constructors, commands, jobs and listeners. Use a facade only for a one-liner where injection would be awkward.
+- Plain data objects (such as a per-section settings object) can still be created with `new`. Services and the plugin must not be.
+- `scripts/scan-craft5.sh` flags remaining `::getInstance()` calls under "Static lookups".
