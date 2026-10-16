@@ -44,9 +44,13 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
    - Larger plugin: do Stage 1, release an alpha, then migrate gradually.
    - Plugin with its own extension surface (the scan lists its own events): decide between a compatibility layer and a clean break. A clean break moves to Laravel events, removes the old Yii-style `EVENT_*` constants and documents what users must change in `UPGRADE.md` (see "Ground rules"). In end state B, any compatibility layer must not need Yii or the adapter either.
    - Maybe obsolete (filesystems, mail transports, log back-ends): say so before porting.
-4. Confirm the Craft 5 side is clean: latest 5.x, and no outstanding deprecation warnings. The scan cannot check this. Install the plugin in a Craft 5 project, exercise its features, then review Utilities > Deprecation Warnings. If that isn't possible, say so and carry on.
+4. **Ask the developer about the namespace, and get an explicit answer.** Craft 5 plugins usually use a Yii-style lowercase namespace (`craft\myplugin`). Laravel and Craft 6 convention is a PascalCase PSR-4 vendor namespace (for example `CraftCms\MyPlugin` or `MyOrg\MyPlugin`). Explain the trade-off and let them choose:
+   - **Move to the conventional namespace:** a breaking change for anyone referencing the old class names (record it in `UPGRADE.md`), but it makes the port easy to track. New or ported classes live in the new namespace and anything still in the old one is not ported yet, so the scan, `git grep` and `composer.json` autoload entries show progress at a glance.
+   - **Keep the old namespace:** fewer breaking changes, but ported and unported code look the same.
+   Record the decision in the plan. Don't change a namespace without the developer's agreement.
+5. Confirm the Craft 5 side is clean: latest 5.x, and no outstanding deprecation warnings. The scan cannot check this. Install the plugin in a Craft 5 project, exercise its features, then review Utilities > Deprecation Warnings. If that isn't possible, say so and carry on.
 
-**Exit:** a short written plan listing the areas found, the end state (A or B) and the target stage (1 only, or through 5).
+**Exit:** a short written plan listing the areas found, the end state (A or B), the namespace decision and the target stage (1 only, or through 5).
 **Checkpoint:** present the plan and get agreement.
 
 ## Stage 1: Make it run on Craft 6 (required)
@@ -73,6 +77,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 2. Port settings: `PluginSettings`, a config stub in `config/<handle>.php`, and `getRules()` in place of `defineRules()`.
 3. Port migrations: bring the `Install` migration up to date, cull old incremental migrations, and convert to Laravel `Schema`/`Blueprint` migrations in `database/migrations/`. Convert `ActiveRecord` classes to Eloquent models.
 4. Rename `translations/` to `lang/`, and switch `Craft::t()` to `t()`.
+5. If the developer chose a new namespace in Stage 0, add it to `composer.json` `autoload.psr-4` next to the old one and move classes across as they are ported. Update the plugin class reference (`extra.class`) if it changed, and record every renamed class in `UPGRADE.md`.
 
 **Exit:** install, uninstall and settings save all work on native code, and migrations run without the adapter's shims.
 **Checkpoint:** summarize. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue.

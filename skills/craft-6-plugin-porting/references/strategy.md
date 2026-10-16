@@ -19,6 +19,17 @@ End state B treats the adapter as scaffolding. The plugin runs on Craft 6 after 
 
 Remember that the adapter is a supported destination too. If end state B stalls on something with no native replacement yet (for example custom element types, which the docs don't cover), fall back to A for that release and say so.
 
+## Choose the namespace
+
+Ask the developer, and don't change a namespace without their agreement. Craft 5 plugins usually use lowercase Yii-style namespaces (`craft\myplugin`); Laravel convention is PascalCase PSR-4 (`CraftCms\MyPlugin`, `MyOrg\MyPlugin`).
+
+| Choice | Upside | Downside |
+| --- | --- | --- |
+| Conventional namespace | Matches Laravel and Craft 6 style. Doubles as a progress marker: ported classes are in the new namespace, anything still in the old one is not ported yet. | Breaking change for code that references your classes: list every rename in `UPGRADE.md`. |
+| Keep the old namespace | Fewer breaking changes. | Ported and unported code look alike, so progress is harder to see. |
+
+While moving, keep both namespaces in `composer.json` `autoload.psr-4`, and remove the old one once nothing uses it (unless you keep a deliberate legacy layer).
+
 ## Simple plugins
 
 Plugins that mostly handle or alter an event can usually be **fully ported** and released as an alpha.
