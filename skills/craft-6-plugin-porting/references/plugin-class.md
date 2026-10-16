@@ -67,3 +67,28 @@ When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\P
 - **Template root and icon:** `resources/views/` (or `resources/templates/`), `resources/icon.svg`.
 
 Test after each of these: the plugin still installs and enables, and its settings load from project config unchanged.
+
+## Class organization (conventional namespace)
+
+Craft 6 organizes classes by role, not by Yii parentage. If the developer agreed to a conventional namespace, move classes as you port them:
+
+| Craft 5 / Yii location | Craft 6 location | Core examples |
+| --- | --- | --- |
+| `src/Plugin.php` (`craft\myplugin\Plugin`) | `src/Plugin.php` (`CraftCms\MyPlugin\Plugin`) | |
+| `src/models/Settings.php` | `src/Settings.php` (next to the plugin class) | |
+| `src/controllers/` | `src/Http/Controllers/` | `CraftCms\Cms\Http\Controllers\AddressesController` |
+| request validation (new) | `src/Http/Requests/` | `CraftCms\Cms\Http\Requests\...` |
+| middleware (new) | `src/Http/Middleware/` | `CraftCms\Cms\Http\Middleware\...` |
+| `src/events/` | `src/Events/` | `CraftCms\Cms\Section\Events\SectionSaved` |
+| listeners (new) | `src/Listeners/` | |
+| `src/models/` (data objects) | `src/Data/` | `CraftCms\Cms\Section\Data\Section` |
+| `src/records/` (now Eloquent) | `src/Models/` | `CraftCms\Cms\Section\Models\Section` |
+| `src/services/` | feature folders with `#[Singleton]` classes | `CraftCms\Cms\Section\Sections` |
+| `src/console/controllers/` | `src/Console/Commands/` | `CraftCms\Cms\Entry\Commands\...` |
+| `src/jobs/` | `src/Jobs/` | |
+
+- Directories are PascalCase and case-sensitive. A case-only rename needs two `git mv` steps on macOS (`git mv events events_tmp && git mv events_tmp Events`).
+- `composer.json` `autoload.psr-4` maps the namespace to `src/`. Remove the old root once nothing uses it, unless you keep a deliberate compatibility layer.
+- Larger plugins can group by feature instead (`src/Reporting/Events/`, `src/Reporting/Data/`), as Craft does.
+- Record every renamed class in `UPGRADE.md` with its old and new fully qualified name.
+- After moving, re-run `scripts/scan-craft5.sh`: it flags leftover Yii-style lowercase directories.

@@ -163,6 +163,22 @@ echo "Directories (two levels):"
   ! -path './.git*' ! -path './vendor*' ! -path './node_modules*' | sort | sed 's|^\./|  |')
 
 echo
+echo "Yii-style directories to reorganize if moving to a conventional namespace:"
+legacy_dirs=0
+for pair in controllers:Http/Controllers events:Events models:Data-or-Models records:Models services:feature-folders behaviors:macros-or-traits console:Console/Commands jobs:Jobs queue:Jobs; do
+  d="${pair%%:*}"; to="${pair#*:}"
+  # find -name matches the stored name exactly, so `Events/` doesn't count as `events/` on case-insensitive filesystems.
+  for base in "$target/src" "$target"; do
+    if [ -d "$base" ] && find "$base" -maxdepth 1 -type d -name "$d" | grep -q .; then
+      rel="${base#"$target"}"; rel="${rel#/}"; [ -n "$rel" ] && rel="$rel/"
+      echo "  ${rel}${d}/  ->  ${to}"
+      legacy_dirs=$((legacy_dirs + 1))
+      break
+    fi
+  done
+done
+[ "$legacy_dirs" -eq 0 ] && echo "  (none)"
+
 echo "Craft 6 layout targets:"
 for p in src routes database/migrations lang resources config; do
   if [ -d "$target/$p" ]; then echo "  present  $p/"; else echo "  missing  $p/"; fi

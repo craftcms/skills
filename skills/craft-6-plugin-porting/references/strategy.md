@@ -28,7 +28,7 @@ Ask the developer, and don't change a namespace without their agreement. Craft 5
 | Conventional namespace | Matches Laravel and Craft 6 style. Doubles as a progress marker: ported classes are in the new namespace, anything still in the old one is not ported yet. | Breaking change for code that references your classes: list every rename in `UPGRADE.md`. |
 | Keep the old namespace | Fewer breaking changes. | Ported and unported code look alike, so progress is harder to see. |
 
-While moving, keep both namespaces in `composer.json` `autoload.psr-4`, and remove the old one once nothing uses it (unless you keep a deliberate legacy layer).
+Recommend the conventional namespace by default: it is what Craft's own code and the docs' examples use, and it makes progress visible. While moving, keep both namespaces in `composer.json` `autoload.psr-4`, and remove the old one once nothing uses it (unless you keep a deliberate legacy layer). Where each kind of class goes is in [plugin-class.md](plugin-class.md#class-organization-conventional-namespace).
 
 ## Simple plugins
 
