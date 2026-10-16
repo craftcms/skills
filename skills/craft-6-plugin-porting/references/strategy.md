@@ -41,6 +41,10 @@ Some low-level plugins are obsolete in Laravel:
 - **Custom log back-ends.** Plugins may boot too late to capture a full picture. Consider whether Laravel logging is enough.
 - **Filesystems.** Removed in Craft 6. Projects configure Laravel disks in `config/filesystems.php` and select them in each volume's settings.
 
+## Clean break: Laravel events and an upgrade guide
+
+If the developer doesn't want a compatibility layer, move the plugin's own Yii-style events (`EVENT_*` constants and `Event` subclasses) to Laravel event classes, remove the old ones, and write down what users must change in `UPGRADE.md` (start from `assets/UPGRADE.template.md`). Each removed event gets a before and after listener example. This is the simplest route to an adapter-free release, because the legacy Yii event system can't be proxied without the adapter.
+
 ## Compatibility layers for your own legacy API
 
 Only needed if other plugins or projects extend your plugin, or the database or project config stores your fully-qualified class names (for example a `type` column that maps to a class).

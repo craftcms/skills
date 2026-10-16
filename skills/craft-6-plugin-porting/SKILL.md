@@ -30,6 +30,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 - The deprecation notes (`@deprecated`, `#[Deprecated]`) on the adapter's legacy classes point to the replacement. Use them.
 - Requirements: PHP 8.5, and Craft 5 on its latest 5.x release first. Projects cannot jump from Craft 4 or earlier.
 - Make one change set at a time, keep the plugin's tests passing, and commit between stages if the project uses git. Ask before deleting files or restructuring.
+- **Keep an `UPGRADE.md` for the plugin's users.** Whenever the port removes, renames or changes something other code may depend on (events, classes and namespaces, settings and config, routes and action URLs, Twig variables, permissions, requirements), add an entry with before and after code as you make the change. Start it from [assets/UPGRADE.template.md](assets/UPGRADE.template.md) at the first such change, and finish it in Stage 5. Only record changes that really happened, and check every new name against the installed source.
 - Explain *why* as you go. The developer is learning Craft 6 conventions, not just receiving a diff.
 
 ## Stage 0: Assess
@@ -41,7 +42,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 3. Agree a strategy and the end state (A or B above) with the developer ([references/strategy.md](references/strategy.md)):
    - Simple plugin (mostly event handling): plan to fully port.
    - Larger plugin: do Stage 1, release an alpha, then migrate gradually.
-   - Plugin with its own extension surface (the scan lists its own events): decide whether to ship a compatibility layer. In end state B, that layer must not need Yii or the adapter either.
+   - Plugin with its own extension surface (the scan lists its own events): decide between a compatibility layer and a clean break. A clean break moves to Laravel events, removes the old Yii-style `EVENT_*` constants and documents what users must change in `UPGRADE.md` (see "Ground rules"). In end state B, any compatibility layer must not need Yii or the adapter either.
    - Maybe obsolete (filesystems, mail transports, log back-ends): say so before porting.
 4. Confirm the Craft 5 side is clean: latest 5.x, and no outstanding deprecation warnings. The scan cannot check this. Install the plugin in a Craft 5 project, exercise its features, then review Utilities > Deprecation Warnings. If that isn't possible, say so and carry on.
 
@@ -84,7 +85,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 1. Port services to plain classes, mark them `#[Singleton]`, and replace `Craft::$app` locator calls and plugin getters with injection or `app()`.
 2. Port event handlers to the new event classes. Look up each replacement from the old constant's docblock. Never convert them with a regex. Register with `$events`, `Event::listen()` in `boot()`, or a subscriber.
 3. Replace `RegisterComponentTypesEvent` handlers with registries or plugin properties.
-4. Port your own events to event classes, and decide what happens to the old ones.
+4. Port your own events to Laravel event classes. Unless the developer chose a compatibility layer, remove the old Yii-style `EVENT_*` constants and event base classes, and add a before and after entry for each to `UPGRADE.md`.
 5. Move validation to Laravel rules (`getRules()`, form requests, rulesets), preferably at the input layer.
 6. Replace behaviors with macros.
 
@@ -113,13 +114,13 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 
 1. Fields: `settingsForm()` and `formControl()` in place of `getSettingsHtml()`/`getInputHtml()`, `modifyQuery()` in place of `queryCondition()`, and `getRules()`/`getElementRules()`.
 2. Widgets and utilities: new base classes and registration. Element types have no porting guide yet, so read the source and tell the developer.
-3. Legacy layer: decide what, if anything, to keep for downstream users (`class_alias()`, a `legacy/` autoload root, `Deprecator::log()`), and update `composer.json` autoloading for old and new namespaces.
+3. Legacy layer: decide what, if anything, to keep for downstream users (`class_alias()`, a `legacy/` autoload root, `Deprecator::log()`), and update `composer.json` autoloading for old and new namespaces. If the developer chose a clean break instead, finish `UPGRADE.md` now: every removed or renamed event, class, setting, route and variable should have a before and after entry, and the requirements and upgrade steps sections should be filled in.
 4. End state B: ask the developer to confirm, then remove `craftcms/yii2-adapter` from the plugin's `composer.json`. In a clean host project that has neither the adapter nor other plugins, test every feature. Confirm nothing pulls Yii in: `composer why craftcms/yii2-adapter` and `composer why yiisoft/yii2` should both report nothing.
 5. Re-run `scripts/scan-craft5.sh` on the plugin's native source. For end state B it should report no hits. Any intentional legacy-compatibility folder (for example `legacy/`) is the only expected exception, and it needs an explanation.
 6. Run static analysis and, optionally, Laravel Pint.
 
 **Exit:** for end state B, the plugin works with the adapter absent, with no Yii classes pulled in, and the scan is clean apart from explained exceptions.
-**Checkpoint:** final report listing what is native, anything still relying on the adapter or legacy shims, anything unverified, and release notes the developer should write (new major version, PHP 8.5, breaking changes for downstream users).
+**Checkpoint:** final report listing what is native, anything still relying on the adapter or legacy shims, anything unverified, the finished `UPGRADE.md`, and release notes the developer should write (new major version, PHP 8.5, breaking changes for downstream users).
 
 ## Reference map
 
