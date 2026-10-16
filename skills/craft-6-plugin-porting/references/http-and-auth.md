@@ -100,3 +100,25 @@ For a non-Ajax post, `asModelFailure()` redirects back and flashes the data. The
 - `session().get('<modelName>')` for the model's data as an array
 
 An Ajax request (`Accept: application/json`) gets a JSON response with HTTP `200` or `400` and the keys `message`, `modelName`, `modelClass`, `modelId` (success only) and `entry`.
+
+## API and JSON routes (verified porting craftcms/element-api)
+
+- **Dynamic routes from config:** `routes/web.php` can loop over settings and register one route per entry. `app(Plugin::class)->getSettings()` already contains the values from `config/craft/<handle>.php` when routes load. Pass route parameters to user closures by name with `app()->call($closure, $routeParams)`: it also injects type-hinted services such as `Illuminate\Http\Request`.
+- **Yii URL rules to Laravel routes:** `news/<id:\d+>.json` becomes `news/{id}.json`. Inline regexes and the `{handle}`/`{slug}` tokens are gone, so a parameter matches anything. Restore the old constraint with `->whereNumber('id')` (or `->where()`), or the old 404 becomes an error: a non-numeric value reaching an `int` argument is a `TypeError` (500). `Route::match(['GET', 'HEAD', 'OPTIONS'], ...)` for read-only APIs.
+- **Response headers from user code:** `Craft::$app->getResponse()->getHeaders()->set($name, $value)` becomes `CraftCms\Cms\Support\Facades\ResponseHeaders::add($name, $value)`. It is a scoped service that Craft's `SetHeaders` middleware applies on the way out. To mimic Yii's `setDefault()` (set only if absent), check `app(ResponseHeaders::class)->headers` first.
+- **No cookies on JSON routes:** routes in `routes/web.php` get the full web middleware stack, so every response sets an `XSRF-TOKEN` and a session cookie, and CDNs won't cache it. For a read-only API, exclude the stack from the route:
+
+```php
+Route::match(['GET', 'HEAD', 'OPTIONS'], $pattern, ApiController::class)
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ]);
+```
+
+Verified: no `Set-Cookie`, and requests that carry a logged-in cookie still work.
+- **JSON/JSONP output:** Yii's `JsonResponseFormatter` and `Json::htmlEncode()` differ from `JsonResponse`. To keep bodies identical, build the string yourself: JSONP is `callback(` + `json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS)` + `);` and ignores user JSON options and pretty-printing.
+- **`config:cache` and closures:** `php artisan config:cache` throws `LogicException: ... is non-serializable` when a config file holds closures (as Element API's does). Say so in the README and `UPGRADE.md`. Routes can be cached, but must be re-cached when the config changes.

@@ -106,3 +106,26 @@ public function __invoke(Request $request, Sections $sections, Elements $element
 - Inject into controller `__invoke()`/`handle()` methods, constructors, commands, jobs and listeners. Use a facade only for a one-liner where injection would be awkward.
 - Plain data objects (such as a per-section settings object) can still be created with `new`. Services and the plugin must not be.
 - `scripts/scan-craft5.sh` flags remaining `::getInstance()` calls under "Static lookups".
+
+## Caching responses and data (verified porting craftcms/element-api)
+
+| Craft 5 / Yii | Craft 6 |
+| --- | --- |
+| `Craft::$app->getCache()->get($key)` | `CraftCms\DependencyAwareCache\Facades\DependencyCache::get($key)` (returns `null` on a miss, not `false`) |
+| `$cache->set($key, $value, $duration, $dependency)` | `DependencyCache::put($key, $value, $ttl, $dependency)` |
+| `yii\caching\TagDependency` | `CraftCms\DependencyAwareCache\Dependency\TagDependency` (`$dependency->tags[] = 'my-tag'`; `TagDependency::invalidate('my-tag')`) |
+| `Craft::$app->getElements()->startCollectingCacheInfo()` / `stopCollectingCacheInfo()` | Inject `CraftCms\Cms\Element\ElementCaches`: same method names, `stopCollectingCacheInfo()` returns `[$dependency, $maxDuration]` |
+| `Craft::$app->getConfig()->getGeneral()->cacheDuration` | Inject `CraftCms\Cms\Config\GeneralConfig` |
+| `ConfigHelper::durationInSeconds()` | `CraftCms\Cms\Support\Config::durationInSeconds()` |
+| `ArrayHelper::remove($a, 'k', $default)` / `ArrayHelper::merge()` | `CraftCms\Cms\Support\Arr::pull($a, 'k', $default)` / `Arr::merge()` (same recursive semantics as Yii) |
+| `Craft::configure($query, $criteria)` | `CraftCms\Cms\Support\Typecast::configure($query, $criteria)` (what core does) |
+| `$request->getPathInfo()` / `getQueryString()` | `$request->path()` / `$request->getQueryString()` |
+| `Craft::$app->getSites()->getCurrentSite()` | Inject `CraftCms\Cms\Site\Sites` and call `getCurrentSite()` |
+| `Craft::$app->getDeprecator()->log($key, $msg)` | `CraftCms\Cms\Support\Facades\Deprecator::log($key, $msg)` |
+| `ClearCaches::EVENT_REGISTER_TAG_OPTIONS` handler | `CraftCms\Cms\Utility\Utilities\ClearCaches::addTag($tag, $label)` in `boot()` |
+
+Core's `CraftCms\Cms\Gql\Gql::executeQuery()` is the model for caching a computed result with element-cache tags.
+
+**Audit every cache duration.** Yii's default cache duration was the `cacheDuration` general config setting. In Laravel, a `null` TTL means **forever**, and `0` means **don't cache**. A port that passes `null` through caches forever, and no response-body test will notice. Pass `Config::durationInSeconds($generalConfig->cacheDuration) ?: null` where the old code relied on the default, and keep Craft's meaning of `0` (until invalidated) as `null`.
+
+To check a port against the original, diff it against the Yii implementation while the adapter is still installed: call the new private method through `ReflectionMethod` in tinker and compare with `yii\helpers\Json::encode()` on strings like `a<b>&'"/é`.

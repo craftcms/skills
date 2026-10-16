@@ -158,6 +158,9 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 
 - **Filesystems, mail transports and log back-ends:** likely obsolete in Craft 6 (Laravel disks, mailers and logging). Tell the developer before porting them mechanically.
 - **Control panel JavaScript:** the docs say little yet about the new client-side architecture, so flag heavy CP UI work as unverified.
+- **Element types with no native class:** in 6.0.0-alpha.20, `Category`, `Tag`, `GlobalSet` (and Matrix blocks) exist only as legacy classes inside `craftcms/yii2-adapter`. Native classes exist for `Entry`, `Asset`, `User` and `Address`. A plugin that queries the others can't go adapter-free yet: say so, and document it.
+- **Plugin APIs defined by a config file:** when users write closures and class names in a config file, that file is the public API. List every Craft 5 class and call they use, with the Craft 6 replacement, in `UPGRADE.md` (it is where most of the breaking changes live), and warn that `config:cache` can't serialize closures.
+- **Audit cache TTLs and cookies:** a Laravel cache `null` TTL means forever, and JSON routes in `routes/web.php` get session cookies. See [services-and-di.md](references/services-and-di.md) and [http-and-auth.md](references/http-and-auth.md).
 - **Docs inconsistencies:** a few snippets in the docs conflict (noted in the reference files). Verify against source before relying on them.
 - **Developer wants to stop at Stage 1 (end state A):** that is a valid, supported outcome. Make sure the plugin's `composer.json` requires the adapter, and say which deprecations remain.
 - **Adapter-free but the plugin keeps a legacy event or class API:** the legacy Yii event system can't be proxied without the adapter. Either keep legacy names as plain aliases (`class_alias()`), or document the break. Don't quietly keep a Yii dependency.
