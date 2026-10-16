@@ -2,6 +2,23 @@
 
 Source: Craft 6.x extend docs, "Approach" and "The Adapter".
 
+## Choose the end state
+
+Decide this with the developer in Stage 0. It sets how many stages to run.
+
+| End state | Adapter | Stages | When it fits |
+| --- | --- | --- | --- |
+| **A. Ship on the adapter** | Required by the released plugin | 1 required, 2 to 5 optional | Large plugin, limited time, or other code that depends on legacy behavior |
+| **B. Adapter-free** | Required **while porting**, but not used or required in the release | All, ending with removal in Stage 5 | Small or medium plugin, or a maintainer who wants no Yii dependency |
+
+End state B treats the adapter as scaffolding. The plugin runs on Craft 6 after Stage 1, and each later stage replaces something the adapter was covering. Proof of completion:
+
+- `scripts/scan-craft5.sh` reports no hits on the plugin's native source. A deliberate `legacy/` folder is the only acceptable exception, and it needs an explanation.
+- The adapter is gone from `composer.json`, and `composer why craftcms/yii2-adapter` and `composer why yiisoft/yii2` report nothing in a clean host project.
+- Every feature works in that clean project.
+
+Remember that the adapter is a supported destination too. If end state B stalls on something with no native replacement yet (for example custom element types, which the docs don't cover), fall back to A for that release and say so.
+
 ## Simple plugins
 
 Plugins that mostly handle or alter an event can usually be **fully ported** and released as an alpha.

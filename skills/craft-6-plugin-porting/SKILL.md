@@ -13,6 +13,13 @@ This skill walks the developer and the agent through the port **in stages**. Eac
 
 Only Stage 1 is required. Stages 2 to 5 eject the Yii 2 adapter and can be done gradually, or never: shipping on the adapter is an officially supported way to release a 6.x-compatible plugin.
 
+Agree an **end state** with the developer in Stage 0, because it decides how far to go:
+
+- **End state A, ship on the adapter:** the adapter stays a dependency of the released plugin. Stage 1 is enough, and later stages are optional clean-up.
+- **End state B, adapter-free:** the adapter is required while porting, so the plugin runs on Craft 6 after Stage 1, but it is **not used and not required by the end**. Run all stages. Stage 5 removes it and proves the plugin works without it.
+
+Treat the adapter as scaffolding in end state B. Each stage should reduce what depends on it, and `scripts/scan-craft5.sh` should show fewer hits as the port progresses.
+
 ## Ground rules
 
 - Craft 6 was in alpha when this skill was written, so extension APIs may change. The source of truth is the Craft 6.x extend docs (https://craftcms.com/docs/6.x/extend/), the installed `craftcms/cms` 6.x package, and already-ported first-party plugins (for example `craftcms/guest-entries`, `craftcms/demo-plugin`).
@@ -28,15 +35,15 @@ Only Stage 1 is required. Stages 2 to 5 eject the Yii 2 adapter and can be done 
 **Goal:** know what is being ported and how far to go.
 
 1. Identify the target: a distributable plugin (Composer package of type `craft-plugin`) or a project module.
-2. Run `scripts/scan-craft5.sh <path>` (set `VERBOSE=1` for sample matches). Summarize usage of Yii and Craft 5 APIs per area, using the table in "Reference map" below.
-3. Agree a strategy with the developer ([references/strategy.md](references/strategy.md)):
+2. Run `scripts/scan-craft5.sh <path>` (set `VERBOSE=1` for sample matches). It reports hits per area, the plugin's own events, the directory layout and which Craft 6 layout folders are missing. Summarize usage of Yii and Craft 5 APIs per area, using the table in "Reference map" below. Keep this output: it is the baseline to compare against at the end.
+3. Agree a strategy and the end state (A or B above) with the developer ([references/strategy.md](references/strategy.md)):
    - Simple plugin (mostly event handling): plan to fully port.
    - Larger plugin: do Stage 1, release an alpha, then migrate gradually.
-   - Plugin with its own extension surface: decide whether to ship a compatibility layer.
+   - Plugin with its own extension surface (the scan lists its own events): decide whether to ship a compatibility layer. In end state B, that layer must not need Yii or the adapter either.
    - Maybe obsolete (filesystems, mail transports, log back-ends): say so before porting.
-4. Confirm the Craft 5 side is clean: latest 5.x, and no outstanding deprecation warnings.
+4. Confirm the Craft 5 side is clean: latest 5.x, and no outstanding deprecation warnings. The scan cannot check this. Install the plugin in a Craft 5 project, exercise its features, then review Utilities > Deprecation Warnings. If that isn't possible, say so and carry on.
 
-**Exit:** a short written plan listing the areas found and the target stage (1 only, or through 5).
+**Exit:** a short written plan listing the areas found, the end state (A or B) and the target stage (1 only, or through 5).
 **Checkpoint:** present the plan and get agreement.
 
 ## Stage 1: Make it run on Craft 6 (required)
@@ -105,10 +112,11 @@ Only Stage 1 is required. Stages 2 to 5 eject the Yii 2 adapter and can be done 
 1. Fields: `settingsForm()` and `formControl()` in place of `getSettingsHtml()`/`getInputHtml()`, `modifyQuery()` in place of `queryCondition()`, and `getRules()`/`getElementRules()`.
 2. Widgets and utilities: new base classes and registration. Element types have no porting guide yet, so read the source and tell the developer.
 3. Legacy layer: decide what, if anything, to keep for downstream users (`class_alias()`, a `legacy/` autoload root, `Deprecator::log()`), and update `composer.json` autoloading for old and new namespaces.
-4. Remove `craftcms/yii2-adapter` from the plugin's `composer.json`. In a clean host project that has neither the adapter nor other plugins, test every feature.
-5. Run static analysis and, optionally, Laravel Pint.
+4. End state B: remove `craftcms/yii2-adapter` from the plugin's `composer.json`. In a clean host project that has neither the adapter nor other plugins, test every feature. Confirm nothing pulls Yii in: `composer why craftcms/yii2-adapter` and `composer why yiisoft/yii2` should both report nothing.
+5. Re-run `scripts/scan-craft5.sh` on the plugin's native source. For end state B it should report no hits. Any intentional legacy-compatibility folder (for example `legacy/`) is the only expected exception, and it needs an explanation.
+6. Run static analysis and, optionally, Laravel Pint.
 
-**Exit:** the plugin works with the adapter absent, with no Yii classes pulled in.
+**Exit:** for end state B, the plugin works with the adapter absent, with no Yii classes pulled in, and the scan is clean apart from explained exceptions.
 **Checkpoint:** final report listing what is native, anything still relying on the adapter or legacy shims, anything unverified, and release notes the developer should write (new major version, PHP 8.5, breaking changes for downstream users).
 
 ## Reference map
@@ -141,4 +149,5 @@ Only Stage 1 is required. Stages 2 to 5 eject the Yii 2 adapter and can be done 
 - **Filesystems, mail transports and log back-ends:** likely obsolete in Craft 6 (Laravel disks, mailers and logging). Tell the developer before porting them mechanically.
 - **Control panel JavaScript:** the docs say little yet about the new client-side architecture, so flag heavy CP UI work as unverified.
 - **Docs inconsistencies:** a few snippets in the docs conflict (noted in the reference files). Verify against source before relying on them.
-- **Developer wants to stop at Stage 1:** that is a valid, supported outcome. Make sure the plugin's `composer.json` requires the adapter, and say which deprecations remain.
+- **Developer wants to stop at Stage 1 (end state A):** that is a valid, supported outcome. Make sure the plugin's `composer.json` requires the adapter, and say which deprecations remain.
+- **Adapter-free but the plugin keeps a legacy event or class API:** the legacy Yii event system can't be proxied without the adapter. Either keep legacy names as plain aliases (`class_alias()`), or document the break. Don't quietly keep a Yii dependency.
