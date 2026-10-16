@@ -4,21 +4,21 @@ Source: Craft 6.x extend docs, "Required Changes", "Base Plugin Class", "The Ada
 
 This is the minimum to get a plugin running on Craft 6.x. Everything else is about ejecting the adapter and is optional.
 
-## Checklist
+## Checklist (Stage 1, adapter-only)
 
 1. Resolve all Craft 5.x deprecation warnings first. The adapter does not work otherwise.
 2. `composer require craftcms/yii2-adapter` in the **plugin** package. Do not assume the host project includes it.
-3. Require `craftcms/cms` at `^6.0.0` and PHP 8.5.
-4. Make the primary class extend `CraftCms\Cms\Plugin\Plugin` instead of `craft\base\Plugin`.
-5. Update the signatures of lower-level methods on the base class and its interfaces, notably `attributes()` and `attributeLabels()`. If the plugin doesn't override them, nothing to do.
-6. Move code from `init()` to `boot()`.
-7. Rename `createSettingsModel()` to `createSettings()`, returning a subclass of `CraftCms\Cms\Plugin\PluginSettings` (or `null`).
-8. Tag a new major version (alpha or beta is fine). A cross-compatible 5.x/6.x release is not possible.
-9. Test with the adapter required only by this plugin: remove the adapter and all other plugins from the host project first, because the adapter activates whenever any installed plugin requires it.
+3. Require `craftcms/cms` at `^6.0.0` and PHP `^8.5`. If `config.platform.php` is set lower than 8.5, remove or raise it: Composer would otherwise refuse the adapter.
+4. **Keep the legacy base class (`craft\base\Plugin`) for now.** The adapter routes `actions/<handle>/<controller>` URLs only to plugins that are Yii modules. After switching to `CraftCms\Cms\Plugin\Plugin`, those URLs return 404 until the controllers are ported and routed (Stage 2). The upstream compatibility branch of `craftcms/guest-entries` did exactly this: a Composer constraint change and `attributes(): array`.
+5. Update signatures of overridden methods that the legacy classes still provide, notably `attributes()` and `attributeLabels()`. If the plugin doesn't override them, nothing to do.
+6. Test with the adapter required only by this plugin: remove other plugins from the host project first, because the adapter activates whenever any installed plugin requires it. See [testing.md](testing.md).
+7. A plugin shows as "Craft 6.0-ready" in the control panel once it tags a new major version requiring `craftcms/cms:^6.0.0` and adopts the new base class (Stage 2). Cross-compatible 5.x/6.x releases are not possible.
 
 During alpha/beta a project may need `CRAFT_DISABLED_PLUGINS="*"` in `.env` to stop incompatible plugins loading mid-upgrade.
 
-## Base class
+## Base class (Stage 2)
+
+Switch only together with the controller and route port. See [plugin-class.md](plugin-class.md).
 
 ```php
 use CraftCms\Cms\Plugin\Plugin as BasePlugin;

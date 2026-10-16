@@ -26,3 +26,45 @@ Source: Craft 6.x extend docs, "Field Types", "Widgets", "Settings + Config". Th
 - Element types: `protected array $elementTypes = [...]` or `ElementTypes`. No porting guide existed for elements when this skill was written, so read the 6.x source and the adapter's `@deprecated` tags, and tell the user.
 - Auth methods: `AuthMethods` registry (see [events-and-registries.md](events-and-registries.md)).
 - GraphQL, link types, image transformers, asset file kinds: registries (same file).
+
+## Plugin settings form (verified on guest-entries)
+
+A plugin's CP settings page is a `Form` returned from `settingsForm()` (set `public bool $hasCpSettings = true;`). Craft renders it in the `settings` namespace and fills it from the settings class's `validationData()`, so control paths are the settings property names. They can be arrays for nested values:
+
+```php
+use CraftCms\Cms\Form\Controls\Choice;
+use CraftCms\Cms\Form\Controls\Lightswitch;
+use CraftCms\Cms\Form\Form;
+use CraftCms\Cms\Form\FormContext;
+use CraftCms\Cms\Form\Nodes\CopyAttribute;
+use CraftCms\Cms\Form\Nodes\Field;
+use CraftCms\Cms\Form\Nodes\Group;
+
+public function settingsForm(FormContext $context = new FormContext): ?Form
+{
+    $form = Form::make();
+
+    foreach ($sections as $section) {
+        $form->add(
+            Group::make("section-$section->uid", [
+                Field::make(t('Allow guest submissions', category: 'my-plugin'),
+                    Lightswitch::make(['sections', $section->uid, 'allowGuestSubmissions'])),
+                Field::make(t('Default Author', category: 'my-plugin'),
+                    Choice::make(['sections', $section->uid, 'authorUid'])
+                        ->options([['label' => 'admin', 'value' => $uid]])
+                        ->placeholder('')),
+                CopyAttribute::make("section-uid-$section->uid", $section->uid),
+            ])->label($section->name)->collapsible(),
+        );
+    }
+
+    return $form;
+}
+```
+
+- This replaces a Twig `editableTableField` template. A table is not required: groups of fields per row work well.
+- Control classes and nodes live in `CraftCms\Cms\Form\Controls` and `CraftCms\Cms\Form\Nodes`. `Choice` takes `options([['label' => ..., 'value' => ...]])`. `Field::make($label, $control)` takes `instructions()`, `tip()`, `required()`.
+- UIDs are valid path segments (they contain hyphens, not dots), but avoid dots in your own keys.
+- To check the result, request the settings page as a logged-in user and read the Inertia JSON ([testing.md](testing.md)).
+- To show config-file overrides, read `config('craft.<handle>')`; a key is present when set in `config/craft/<handle>.php`.
+- Optional: return a `FormRequest` class from `getSettingsRequestClass()` to validate the whole request instead of just the settings model. Rules then use `settings.`-prefixed keys.

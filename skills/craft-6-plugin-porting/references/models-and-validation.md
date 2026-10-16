@@ -13,7 +13,7 @@ Source: Craft 6.x extend docs, "Models, Records, and Data", "Validation", "Setti
 
 ## Settings
 
-`createSettingsModel()` becomes `createSettings()` and must return a `CraftCms\Cms\Plugin\PluginSettings` subclass (or `null`). Treat it as a drop-in for `craft\base\Model`.
+`createSettingsModel()` becomes `protected static function createSettings(): ?PluginSettings`, returning a `CraftCms\Cms\Plugin\PluginSettings` subclass (or `null`). It is **static**. `PluginSettings` extends `Component`, so it is *not* a `craft\base\Model`: there is no `attributes()` to call `parent::` on, and settings are the class's public properties.
 
 Resolved settings come from, in increasing precedence: defaults on the settings class, project config (`plugins.{handle}.settings`), then the project's `config/craft/{plugin-handle}.php`.
 
@@ -51,3 +51,33 @@ Where possible move validation to the input layer:
 Modify other plugins' or Craft's rules by listening to `CraftCms\Cms\Element\Validation\Events\ValidationRulesResolving` and calling `$event->addRule()`.
 
 Field types have two rule sets: `getRules()` (field settings) and `getElementRules()` (content on an element). The adapter wraps legacy `defineRules()` and `getElementValidationRules()`.
+
+## Settings class with a normalized property (verified)
+
+Project config stores `validationData()`, which is the plugin settings' public properties. Use real public properties, and a property hook (PHP 8.4+) to normalize what is assigned, for example a map keyed by UID that keeps only enabled entries:
+
+```php
+class Settings extends PluginSettings
+{
+    public bool $enableCsrfProtection = true;
+    public string $entryVariable = 'entry';
+
+    public array $sections = [] {
+        set(array $sections) => $this->normalizeSections($sections);
+    }
+
+    public function getRules(): array
+    {
+        return array_merge(parent::getRules(), [
+            'entryVariable' => ['required', 'string'],
+            'sections.*.authorUid' => ['required', 'string'],
+        ]);
+    }
+}
+```
+
+- `getMessages()` customizes error messages per rule, and dot-notation rules (`sections.*.authorUid`) work.
+- `savePluginSettings()` calls `setAttributes($submitted)` then `validate()`, so assignments run through your hook before validation.
+- Settings saved by the Craft 5 plugin load unchanged, as long as the property names and shape are the same.
+- A per-project override file lives at `config/craft/<handle>.php` and returns an array of settings (Craft 5 used `config/<handle>.php`).
+- Known alpha issue: when settings validation fails, `PluginsController::saveSettings()` throws a `TypeError` (500) instead of re-rendering the form. See [testing.md](testing.md).

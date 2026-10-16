@@ -40,12 +40,63 @@ Route::post('events/track', TrackEvent::class);
 
 - Register permissions with `getPermissions()` returning `CraftCms\Cms\User\Data\Permission` objects (`key`, `label`, optional `nested`). Keys are globally unique, so name them explicitly with a plugin prefix.
 - Guard routes: `->middleware(['can:activity-viewReports'])`.
-- Checks: `Gate::check('ability')`, `Gate::authorize('view', $report)`, `Auth::craftUser()->can('ability')`, `$user->can('ability', $subject)`. Bare ability names fall through to Craft permissions.
+- Checks: `Gate::check('ability')`, `Gate::authorize('view', $report)`, `currentUserElement()->can('ability')` (`CraftCms\Cms\currentUserElement()`), `$user->can('ability', $subject)`. Bare ability names fall through to Craft permissions.
 - Compound checks: a policy class registered with `Gate::policy(Report::class, ReportPolicy::class)`. Ability names then reduce to `view`, `save`, etc.
 - Intercept: `Gate::before()`, `Gate::after()`, or the `GateEvaluated` event.
 
 ## Session and user
 
-- Current user element: `Illuminate\Support\Facades\Auth::craftUser()` (class is now `CraftCms\Cms\User\Elements\User`). Global `currentUser()` helper also exists.
+- Current user: `$request->craftUser()` or the helpers `CraftCms\Cms\currentUser()` and `currentUserElement()` (the element class is now `CraftCms\Cms\User\Elements\User`). `Auth::craftUser()` shown in the 6.x docs does **not** exist on 6.0.0-alpha.20 (it throws `SessionGuard::craftUser does not exist`).
 - Flash messages: `CraftCms\Cms\Support\Flash`, or `RespondsWithFlash`. Categories `success`, `notice`, `error`.
 - Validation errors live in `errors` (a `ViewErrorBag`) in templates. Repopulate with `old()`. Use `back()->with(...)` with serializable data.
+
+## Porting a Yii controller action (verified on guest-entries)
+
+| Craft 5 / Yii | Craft 6 |
+| --- | --- |
+| `class SaveController extends Controller`, `actionIndex()` | Plain class with `__invoke(Request $request, ...)`, `use CraftCms\Cms\Http\RespondsWithFlash` |
+| `Craft::$app->getRequest()->getBodyParam('x')` | `$request->input('x')`, `$request->boolean('x', true)` |
+| `$this->requirePostRequest()` | `Route::post(...)` |
+| `$allowAnonymous = true` | Route placement and middleware: `routes/actions.php` is reachable by guests |
+| `!$request->getIsSiteRequest()` then `NotFoundHttpException` | `abort_if($request->isCpRequest(), 404)` (`routes/actions.php` is registered for both site and CP prefixes) |
+| `throw new BadRequestHttpException('...')` | `abort(400, '...')` |
+| `$this->asModelSuccess($model, $msg, 'entry')` / `asModelFailure(...)` | Same names via `RespondsWithFlash` |
+| `Db::idByUid('{{%elements}}', $uid)` | `DB::table(Table::ELEMENTS)->idByUid($uid)` (`CraftCms\Cms\Database\Table`) |
+| `Craft::$app->getElements()->saveElement($el)` | Inject `CraftCms\Cms\Element\Elements` and call `saveElement($el)` |
+| `Craft::$app->getEntries()->getSectionByHandle()` | Inject `CraftCms\Cms\Section\Sections` (or the `Sections` facade) |
+| `$entry->setScenario(Element::SCENARIO_LIVE)` | `$entry->ruleset->useScenario(ElementRules::SCENARIO_LIVE)` |
+| `Craft::info(...)` | `Illuminate\Support\Facades\Log::info(...)` |
+| `Craft::t('cat', 'msg')` | `t('msg', category: 'cat')` |
+
+```php
+// routes/actions.php  ->  actions/<handle>/save, and the CP twin
+Route::post('save', SaveController::class);
+```
+
+## CSRF
+
+Laravel verifies CSRF tokens on web routes (missing token: 419). A Yii controller with `$enableCsrfValidation = false` (or a plugin setting for it) becomes a route exemption, registered in the plugin's `boot()`:
+
+```php
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+
+public function boot(\CraftCms\Cms\Route\Routes $routes): void
+{
+    if (!$this->getSettings()->enableCsrfProtection) {
+        PreventRequestForgery::except([$routes->actionTriggerUriPrefix() . "/$this->handle/save"]);
+    }
+}
+```
+
+Craft uses the same mechanism for `graphql/api`. (The upstream native guest-entries port instead marked its setting deprecated and left CSRF to the application.)
+
+## Failed form posts: what the template gets
+
+For a non-Ajax post, `asModelFailure()` redirects back and flashes the data. The controller's model variable (`'entry'`) is **not** a template variable any more. Templates use:
+
+- `old('title')`, `old('fields.body')` to repopulate the form
+- `errors.get('title')` / `errors.has('title')` for validation errors
+- `session().get('error')` for the message
+- `session().get('<modelName>')` for the model's data as an array
+
+An Ajax request (`Accept: application/json`) gets a JSON response with HTTP `200` or `400` and the keys `message`, `modelName`, `modelClass`, `modelId` (success only) and `entry`.

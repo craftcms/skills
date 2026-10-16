@@ -69,3 +69,22 @@ No Yii behaviors. Use `Macroable` macros, registered in `boot()`. See [models-an
 ## Control panel front end
 
 The CP client-side architecture is being rebuilt (web components via Lion, Inertia, Vue). The docs do not yet give specifics. Prefer plugin `$scripts`/`$styles`/`$vite` publishing ([other-areas.md](other-areas.md)) over `{% js %}` snippets, and flag any heavy CP UI work as unverified.
+
+## Front-end forms (verified on guest-entries)
+
+Twig front-end forms keep working: `csrfInput()` (renders `_token`), `actionInput('<handle>/<action>')`, `redirectInput(...)`, `hiddenInput()`, `input()`, `tag()` and `ul()` all exist. Posting to the page with an `action` param reaches the plugin's `routes/actions.php` route.
+
+What changes is what the template can see after a **failed** post: the user is redirected back and the data is flashed, so a Craft 5 `entry` variable is not available:
+
+| Craft 5 | Craft 6 |
+| --- | --- |
+| `{% set entry = entry ?? null %}` | not needed |
+| `entry.title` (to repopulate) | `old('title')` |
+| `entry.body` (custom field) | `old('fields.body')` |
+| `entry.getErrors('title')` | `errors.get('title')` |
+| `craft.app.sections.getSectionByHandle('x')` | `Sections.getSectionByHandle('x')` (Craft's facades are available in Twig) |
+| flash message | `session().get('error')` / `session().get('success')` |
+
+After a successful post with `redirectInput('thanks')`, the target page can read `session().get('success')`.
+
+Update the plugin's README templates to these idioms, and list the differences in `UPGRADE.md`. Test with a real template in the host project ([testing.md](testing.md)), not by reasoning from the docs.

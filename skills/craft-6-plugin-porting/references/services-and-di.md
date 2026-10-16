@@ -68,3 +68,18 @@ Craft exposes its facades to Twig. See [templates-and-twig.md](templates-and-twi
 ## Typical helper moves
 
 Most static helper classes moved to the `CraftCms\Cms\Support` namespace. Do not guess the new class. Check the `@deprecated` tag on the old helper, which points to the replacement. Common global helpers: `template()`, `pageTemplate()`, `renderString()`, `t()`, `cp_url()`, `site_url()`, `currentUser()`.
+
+## Common lookups when porting `Craft::$app` calls
+
+| Craft 5 | Craft 6 |
+| --- | --- |
+| `Craft::$app->getSections()` / `getEntries()` (sections) | `CraftCms\Cms\Section\Sections` (inject) or the `CraftCms\Cms\Support\Facades\Sections` facade |
+| `Craft::$app->getElements()->saveElement()` | `CraftCms\Cms\Element\Elements::saveElement()` (inject) |
+| `Craft::$app->getProjectConfig()` | `CraftCms\Cms\Support\Facades\ProjectConfig` |
+| `Craft::$app->getEdition()` / `Craft::Pro` | `CraftCms\Cms\Edition::isAtLeast(Edition::Pro)` |
+| `Craft::$app->getUser()->getIdentity()` | `CraftCms\Cms\currentUserElement()` (or `currentUser()`) |
+| `Db::idByUid('{{%elements}}', $uid)` | `DB::table(Table::ELEMENTS)->idByUid($uid)` |
+| `User::find()->can('createEntries:' . $uid)` | Same method on `CraftCms\Cms\User\Elements\User::find()`; iterate the result |
+| `Craft::$app->getView()->renderTemplate()` | `template()` |
+
+Always check the installed source for the exact class and method before relying on a row: these were confirmed on 6.0.0-alpha.20.

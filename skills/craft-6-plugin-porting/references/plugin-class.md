@@ -55,3 +55,15 @@ return [
 ## Modern PHP
 
 PHP 8.5 is required, so 8.2 to 8.5 features are available (property hooks, `#[Override]`, typed class constants, pipe operator, new `array_*` functions). Craft itself leans on enums and attributes. Use `#[\Override]` when overriding Craft methods, to catch signature drift.
+
+## Switching to the native base class (Stage 2): what stops working
+
+When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\Plugin`, the adapter no longer treats the plugin as a Yii module. Port these at the same time:
+
+- **Controllers and action URLs:** Yii controllers are not routed. Port them and register `routes/actions.php` ([http-and-auth.md](http-and-auth.md)).
+- **Settings page:** `settingsHtml()` is not used. Implement `settingsForm()` ([fields-widgets-forms.md](fields-widgets-forms.md)).
+- **Settings model:** `createSettings()` must return a `PluginSettings`. It is `protected static function createSettings(): ?PluginSettings` (static, unlike `createSettingsModel()`).
+- **Initialization:** `init()` becomes `boot()`, which accepts injected services, for example `boot(\CraftCms\Cms\Route\Routes $routes)`.
+- **Template root and icon:** `resources/views/` (or `resources/templates/`), `resources/icon.svg`.
+
+Test after each of these: the plugin still installs and enables, and its settings load from project config unchanged.

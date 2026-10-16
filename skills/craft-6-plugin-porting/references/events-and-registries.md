@@ -97,3 +97,37 @@ Registry-like catalogs that take an identifier plus a closure (lazily invoked, D
 - Migration tracks: `CraftCms\Cms\Database\Commands\MigrateCommand::registerMigrator()` (normally use the plugin's default track)
 
 Custom registries: extend `TypeRegistry`, set `CONTRACT`, optional `DEFAULT_TYPES` and `PROTECTED_TYPES`, override `identity()` if class string is not the identity.
+
+## Porting a plugin's own events (clean break, verified)
+
+A Craft 5 plugin that triggers its own Yii events from a controller:
+
+```php
+public const EVENT_BEFORE_SAVE_ENTRY = 'beforeSaveEntry';   // on the controller
+$this->trigger(self::EVENT_BEFORE_SAVE_ENTRY, $event);        // $event extends CancelableEvent
+if (!$event->isValid) { ... }
+```
+
+becomes plain event classes, dispatched with `event()`:
+
+```php
+use CraftCms\Cms\Shared\Concerns\ValidatableEvent;
+
+class SavingGuestEntry
+{
+    use ValidatableEvent;                       // public bool $isValid = true
+
+    public bool $isSpam = false;
+
+    public function __construct(public Entry $entry) {}
+}
+
+event($saving = new SavingGuestEntry($entry));
+if (!$saving->isValid) { ... }
+```
+
+- Name events object-action: `SavingGuestEntry` (before), `SavedGuestEntry` (after), `GuestEntrySaveFailed` (after an error).
+- Drop `hasEventHandlers()` checks: dispatching an event with no listeners is cheap.
+- Listeners are registered with `Event::listen(fn (SavingGuestEntry $e): void => ...)`, a plugin's `$events` map, or a subscriber. Listeners receive the event only: there is no `sender`.
+- If you don't keep a compatibility layer, document every removed constant and a before and after listener in `UPGRADE.md` (see `assets/UPGRADE.template.md`).
+- Test every path: normal, a listener that rejects, a listener that flags spam, and a failure ([testing.md](testing.md)).
