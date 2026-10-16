@@ -18,7 +18,9 @@ Agree an **end state** with the developer in Stage 0, because it decides how far
 - **End state A, ship on the adapter:** the adapter stays a dependency of the released plugin. Stage 1 is enough, and later stages are optional clean-up.
 - **End state B, adapter-free:** the adapter is required while porting, so the plugin runs on Craft 6 after Stage 1, but it is **not used and not required by the end**. Run all stages. Stage 5 removes it and proves the plugin works without it.
 
-Treat the adapter as scaffolding in end state B. Each stage should reduce what depends on it, and `scripts/scan-craft5.sh` should show fewer hits as the port progresses.
+Treat the adapter as scaffolding in end state B. It stays installed so the plugin keeps running, but don't build anything new on it. Each stage should reduce what depends on it, and `scripts/scan-craft5.sh` should show fewer hits as the port progresses.
+
+**Prompt the developer to remove it at the end.** In end state B, close every checkpoint with a one-line reminder that the adapter is still installed and will be removed in Stage 5. When Stage 5 is reached, ask the developer to confirm before editing `composer.json`, and offer to run the removal checks. If the developer stops early, say plainly that the adapter is still required and what still depends on it.
 
 ## Ground rules
 
@@ -59,7 +61,7 @@ Treat the adapter as scaffolding in end state B. Each stage should reduce what d
 6. Tag an alpha major version if the developer wants to publish.
 
 **Exit:** `ddev artisan craft:plugin:install` succeeds, the plugin's main features work, and no new deprecation errors appear in the Deprecation Warnings utility that block usage.
-**Checkpoint:** report what changed, what was tested, and the list of deprecation warnings still being raised. These drive the next stages. Ask whether to continue to Stage 2.
+**Checkpoint:** report what changed, what was tested, and the list of deprecation warnings still being raised. These drive the next stages. Remind the developer that the adapter is still installed and will be removed in Stage 5 (end state B). Ask whether to continue to Stage 2.
 
 ## Stage 2: Foundations, native settings, layout and database
 
@@ -72,7 +74,7 @@ Treat the adapter as scaffolding in end state B. Each stage should reduce what d
 4. Rename `translations/` to `lang/`, and switch `Craft::t()` to `t()`.
 
 **Exit:** install, uninstall and settings save all work on native code, and migrations run without the adapter's shims.
-**Checkpoint:** summarize, then ask whether to continue.
+**Checkpoint:** summarize. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue.
 
 ## Stage 3: Logic, services, events and validation
 
@@ -87,7 +89,7 @@ Treat the adapter as scaffolding in end state B. Each stage should reduce what d
 6. Replace behaviors with macros.
 
 **Exit:** no use of `Craft::$app`, `Yii::$app` or Yii events remains in the plugin's own logic, and tests pass.
-**Checkpoint:** summarize, then ask whether to continue.
+**Checkpoint:** summarize. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue.
 
 ## Stage 4: Surfaces, HTTP, console, queue and templates
 
@@ -102,7 +104,7 @@ Treat the adapter as scaffolding in end state B. Each stage should reduce what d
 6. Assets: `$scripts`/`$styles`/`$vite` in place of asset bundles.
 
 **Exit:** the plugin's HTTP, CLI, queue, mail and template paths all work and no legacy shims are hit for them.
-**Checkpoint:** summarize, then ask whether to continue.
+**Checkpoint:** summarize. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue.
 
 ## Stage 5: Components, fields, widgets, then remove the adapter
 
@@ -112,7 +114,7 @@ Treat the adapter as scaffolding in end state B. Each stage should reduce what d
 1. Fields: `settingsForm()` and `formControl()` in place of `getSettingsHtml()`/`getInputHtml()`, `modifyQuery()` in place of `queryCondition()`, and `getRules()`/`getElementRules()`.
 2. Widgets and utilities: new base classes and registration. Element types have no porting guide yet, so read the source and tell the developer.
 3. Legacy layer: decide what, if anything, to keep for downstream users (`class_alias()`, a `legacy/` autoload root, `Deprecator::log()`), and update `composer.json` autoloading for old and new namespaces.
-4. End state B: remove `craftcms/yii2-adapter` from the plugin's `composer.json`. In a clean host project that has neither the adapter nor other plugins, test every feature. Confirm nothing pulls Yii in: `composer why craftcms/yii2-adapter` and `composer why yiisoft/yii2` should both report nothing.
+4. End state B: ask the developer to confirm, then remove `craftcms/yii2-adapter` from the plugin's `composer.json`. In a clean host project that has neither the adapter nor other plugins, test every feature. Confirm nothing pulls Yii in: `composer why craftcms/yii2-adapter` and `composer why yiisoft/yii2` should both report nothing.
 5. Re-run `scripts/scan-craft5.sh` on the plugin's native source. For end state B it should report no hits. Any intentional legacy-compatibility folder (for example `legacy/`) is the only expected exception, and it needs an explanation.
 6. Run static analysis and, optionally, Laravel Pint.
 
