@@ -68,27 +68,37 @@ When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\P
 
 Test after each of these: the plugin still installs and enables, and its settings load from project config unchanged.
 
-## Class organization (conventional namespace)
+## Class organization (the default: move most things into Laravel-style namespaces)
 
-Craft 6 organizes classes by role, not by Yii parentage. If the developer agreed to a conventional namespace, move classes as you port them:
+Craft 6 plugins are Laravel packages, so the default is to move **most of the plugin's classes** out of Yii-style folders and into the namespaces and directories Laravel developers expect. Do this as you port each class (Stage 2 onwards), unless the developer declined a namespace change in Stage 0. Craft's own code is organized this way (by feature, then by role).
 
-| Craft 5 / Yii location | Craft 6 location | Core examples |
+| Craft 5 / Yii | Craft 6 / Laravel | Core examples |
 | --- | --- | --- |
 | `src/Plugin.php` (`craft\myplugin\Plugin`) | `src/Plugin.php` (`CraftCms\MyPlugin\Plugin`) | |
 | `src/models/Settings.php` | `src/Settings.php` (next to the plugin class) | |
 | `src/controllers/` | `src/Http/Controllers/` | `CraftCms\Cms\Http\Controllers\AddressesController` |
-| request validation (new) | `src/Http/Requests/` | `CraftCms\Cms\Http\Requests\...` |
-| middleware (new) | `src/Http/Middleware/` | `CraftCms\Cms\Http\Middleware\...` |
+| request validation (new) | `src/Http/Requests/` (`FormRequest`) | `CraftCms\Cms\Http\Requests\...` |
+| middleware, filters (new) | `src/Http/Middleware/` | `CraftCms\Cms\Http\Middleware\...` |
+| response helpers | `src/Http/Responses/` | `CraftCms\Cms\Http\Responses\...` |
 | `src/events/` | `src/Events/` | `CraftCms\Cms\Section\Events\SectionSaved` |
-| listeners (new) | `src/Listeners/` | |
+| event handlers | `src/Listeners/` | |
 | `src/models/` (data objects) | `src/Data/` | `CraftCms\Cms\Section\Data\Section` |
 | `src/records/` (now Eloquent) | `src/Models/` | `CraftCms\Cms\Section\Models\Section` |
-| `src/services/` | feature folders with `#[Singleton]` classes | `CraftCms\Cms\Section\Sections` |
-| `src/console/controllers/` | `src/Console/Commands/` | `CraftCms\Cms\Entry\Commands\...` |
+| `src/enums/` or constants | `src/Enums/` (PHP enums) | `CraftCms\Cms\Section\Enums\SectionType` |
+| `src/services/` | feature folders with `#[Singleton]` classes, plus invokable `Actions/` | `CraftCms\Cms\Section\Sections` |
+| permission checks | `src/Policies/` | `CraftCms\Cms\Entry\Policies\...` |
+| validation rule classes | `src/Validation/` or `src/Rules/` | `CraftCms\Cms\Entry\Validation\EntryRules` |
+| `src/console/controllers/` | `src/Console/Commands/` or `Commands/` | `CraftCms\Cms\Entry\Commands\...` |
 | `src/jobs/` | `src/Jobs/` | |
+| mail and notifications | `src/Mail/`, `src/Notifications/` | |
+| custom exceptions | `src/Exceptions/` | `CraftCms\Cms\Section\Exceptions\SectionNotFoundException` |
+| `src/helpers/` | `src/Support/` (plus facades in `Support/Facades/`) | `CraftCms\Cms\Support\Facades\Sections` |
+| extra service providers | `src/Providers/` | |
+| element types, fields, widgets | `src/Elements/`, `src/Fields/`, `src/Widgets/` | `CraftCms\Cms\Entry\Elements\Entry` |
 
 - Directories are PascalCase and case-sensitive. A case-only rename needs two `git mv` steps on macOS (`git mv events events_tmp && git mv events_tmp Events`).
+- Use `git mv` so history follows, rewrite namespaces and imports in the same commit, then run the tests.
 - `composer.json` `autoload.psr-4` maps the namespace to `src/`. Remove the old root once nothing uses it, unless you keep a deliberate compatibility layer.
-- Larger plugins can group by feature instead (`src/Reporting/Events/`, `src/Reporting/Data/`), as Craft does.
-- Record every renamed class in `UPGRADE.md` with its old and new fully qualified name.
-- After moving, re-run `scripts/scan-craft5.sh`: it flags leftover Yii-style lowercase directories.
+- Larger plugins can group by feature first (`src/Reporting/Events/`, `src/Reporting/Data/`), as Craft does.
+- Don't leave Yii-style folders behind: `scripts/scan-craft5.sh` lists any remaining ones.
+- Record every renamed class in `UPGRADE.md` with its old and new fully qualified name. Namespace changes are breaking changes for anyone who referenced the old classes.

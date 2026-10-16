@@ -165,7 +165,7 @@ echo "Directories (two levels):"
 echo
 echo "Yii-style directories to reorganize if moving to a conventional namespace:"
 legacy_dirs=0
-for pair in controllers:Http/Controllers events:Events models:Data-or-Models records:Models services:feature-folders behaviors:macros-or-traits console:Console/Commands jobs:Jobs queue:Jobs; do
+for pair in controllers:Http/Controllers filters:Http/Middleware web:Http events:Events models:Data-or-Models records:Models enums:Enums services:feature-folders behaviors:macros-or-traits validators:Validation helpers:Support console:Console/Commands jobs:Jobs queue:Jobs elements:Elements fields:Fields widgets:Widgets; do
   d="${pair%%:*}"; to="${pair#*:}"
   # find -name matches the stored name exactly, so `Events/` doesn't count as `events/` on case-insensitive filesystems.
   for base in "$target/src" "$target"; do
