@@ -6,7 +6,7 @@ Source: Craft 6.x extend docs, "Extension Options", "Base Plugin Class".
 
 Laravel builds the app, discovers providers, calls each provider's `register()`, then `boot()`. Craft's `craftcms/plugin-installer` caches `craftcms-plugin` packages and boots them only when installed and enabled (respecting `disabledPlugins`).
 
-- Put initialization in `boot()`. `register()` is rarely right: the event system may not be reliable that early.
+- Put initialization in `boot()`. `register()` runs before other providers have registered, so it is wrong for anything that depends on them (registries, other plugins' services, legacy Yii events). It is fine for early Laravel wiring that depends on nothing else: `PreventRequestForgery::except([...])`, `RateLimiter::for(...)` and `Event::listen()` for Laravel events.
 - There is no central `Craft::$app` before plugins boot.
 - Replaces `Craft::$app->onInit()`, `EVENT_INIT` and `EVENT_AFTER_LOAD_PLUGINS`: `app()->booted($callback)`.
 - Cleanup at end of lifecycle: `app()->terminating($callback)`.
@@ -68,6 +68,29 @@ When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\P
 
 Test after each of these: the plugin still installs and enables, and its settings load from project config unchanged.
 
+**If the controllers cannot all be ported yet** (a large plugin), you can keep the old Yii controllers reachable with a routing shim. The 404 happens because Yii resolves `plugin-handle/controller/action` through `Craft::$app->getModule('plugin-handle')`, and that returns `null` once the plugin is no longer a Yii module. Register a tiny module under the same id from `boot()`:
+
+```php
+class LegacyRoutingModule extends \yii\base\Module
+{
+    public $controllerNamespace = 'craft\\myplugin\\controllers';
+}
+
+// in boot()
+\Craft::$app->setModule($this->handle, new LegacyRoutingModule($this->handle));
+```
+
+This only works when the controllers don't use `$this->module`. It needs the adapter, so remove it, and the old controllers, when the last controller is ported. Don't use it as a reason to skip porting controllers.
+
+Other things a switch to the native class breaks quietly:
+
+- **Behaviors:** classes that used to be Yii components (sites, users, addresses) no longer accept behaviors, and the old ones silently stop working. Replace them with macros (`Site::macro('getStore', ...)`).
+- **Plugin getters:** `Plugin::getInstance()->getFoo()` stops resolving. See [services-and-di.md](services-and-di.md) for a deprecated compatibility getter while call sites are moved.
+- **CP nav:** `getCpNavItem()` returns `NavItem|array|null`, and `NavItem::$subnav` is `array|false`, so normalize an old array's `subnav` to `[]`. The base `cpNavIconPath()` points at `resources/icon-mask.svg`; if the nav icon doesn't show, override it with a published icon path.
+- **Settings model:** while the plugin is still on the legacy base class, `createSettingsModel()` must keep returning a `craft\base\Model` with `defineRules()`. Only the native class takes a `PluginSettings`.
+- **Upgrade gating:** set `public string $schemaVersion` and `public string $minVersionRequired` (the latest 5.x release users must be on first).
+- **A big plugin class:** split it with concern traits (`HasServices`, `HasPermissions`, `HasMacros`, ...) in `src/Plugin/Concerns/`, and keep event handlers as listener classes in `src/Plugin/Listeners/`, registered through the `$events` map (`ElementSaved::class => ElementSavedListener::class`).
+
 ## Class organization (the default: move most things into Laravel-style namespaces)
 
 Craft 6 plugins are Laravel packages, so the default is to move **most of the plugin's classes** out of Yii-style folders and into the namespaces and directories Laravel developers expect. Do this as you port each class (Stage 2 onwards), unless the developer declined a namespace change in Stage 0. Craft's own code is organized this way (by feature, then by role).
@@ -99,6 +122,7 @@ Craft 6 plugins are Laravel packages, so the default is to move **most of the pl
 - Directories are PascalCase and case-sensitive. A case-only rename needs two `git mv` steps on macOS (`git mv events events_tmp && git mv events_tmp Events`).
 - Use `git mv` so history follows, rewrite namespaces and imports in the same commit, then run the tests.
 - `composer.json` `autoload.psr-4` maps the namespace to `src/`. Remove the old root once nothing uses it, unless you keep a deliberate compatibility layer.
-- Larger plugins can group by feature first (`src/Reporting/Events/`, `src/Reporting/Data/`), as Craft does.
+- Larger plugins should group by feature first (`src/Order/Events/`, `src/Order/Data/`, `src/Order/Models/`, `src/Payment/Gateway/`), as Craft does, and keep only truly cross-cutting code in `src/Http/`, `src/Console/` and `src/Support/`.
+- Facades for your services can be aliased for Twig and PHP in `composer.json` under `extra.laravel.aliases`. Don't add `extra.laravel.providers` or `extra.class` when the plugin class sits at the autoload root.
 - Don't leave Yii-style folders behind: `scripts/scan-craft5.sh` lists any remaining ones.
 - Record every renamed class in `UPGRADE.md` with its old and new fully qualified name. Namespace changes are breaking changes for anyone who referenced the old classes.

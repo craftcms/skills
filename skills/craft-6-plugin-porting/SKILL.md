@@ -41,9 +41,10 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 2. Run `scripts/scan-craft5.sh <path>` (set `VERBOSE=1` for sample matches). It reports hits per area, the plugin's own events, the directory layout and which Craft 6 layout folders are missing. Summarize usage of Yii and Craft 5 APIs per area, using the table in "Reference map" below. Keep this output: it is the baseline to compare against at the end.
 3. Agree a strategy and the end state (A or B above) with the developer ([references/strategy.md](references/strategy.md)):
    - Simple plugin (mostly event handling): plan to fully port.
-   - Larger plugin: do Stage 1, release an alpha, then migrate gradually.
-   - Plugin with its own extension surface (the scan lists its own events): decide between a compatibility layer and a clean break. A clean break moves to Laravel events, removes the old Yii-style `EVENT_*` constants and documents what users must change in `UPGRADE.md` (see "Ground rules"). In end state B, any compatibility layer must not need Yii or the adapter either.
+   - Larger plugin: do Stage 1, release an alpha, then migrate gradually. A very large plugin is better ported bottom-up in clusters, with the old code kept under `src-yii2/` behind `class_alias` stubs ([strategy.md](references/strategy.md)).
+   - Plugin with its own extension surface (the scan lists its own events): decide between a compatibility layer and a clean break. A clean break moves to Laravel events, removes the old Yii-style `EVENT_*` constants and documents what users must change in `UPGRADE.md` (see "Ground rules"). In end state B, any compatibility layer must not need Yii or the adapter either. A third option is a bridge that also triggers the old Yii events, which needs the adapter (end state A for that API).
    - Maybe obsolete (filesystems, mail transports, log back-ends): say so before porting.
+   - Scope: ask whether any feature will be removed rather than ported. If the legacy tree ships, the adapter must be in `require`, not `require-dev`.
 4. **Ask the developer about the namespace, and get an explicit answer.** Craft 5 plugins usually use a Yii-style lowercase namespace (`craft\myplugin`). Laravel and Craft 6 convention is a PascalCase PSR-4 vendor namespace (for example `CraftCms\MyPlugin` or `MyOrg\MyPlugin`). Explain the trade-off and let them choose:
    - **Move to the conventional namespace:** a breaking change for anyone referencing the old class names (record it in `UPGRADE.md`), but it makes the port easy to track. New or ported classes live in the new namespace and anything still in the old one is not ported yet, so the scan, `git grep` and `composer.json` autoload entries show progress at a glance.
    - **Keep the old namespace:** fewer breaking changes, but ported and unported code look the same.
@@ -74,7 +75,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 
 1. Change the base class to `CraftCms\Cms\Plugin\Plugin`. Move `init()` logic into `boot()` (which supports dependency injection). Replace `createSettingsModel()` with `protected static function createSettings(): ?PluginSettings` (it is **static**).
 2. Settings: make the settings class extend `PluginSettings`, use `getRules()` instead of `defineRules()`, and give config values real public properties (a property hook can normalize assignments). The CP settings page uses `settingsForm()` (the form builder), replacing the Twig `settingsHtml()` template. Add a config stub only if the plugin wants one.
-3. Controllers: Yii controllers are no longer routed. Port each to a plain (usually invokable) class using `RespondsWithFlash`, and route it from `routes/actions.php` so existing `actions/<handle>/<action>` URLs keep working (`routes/web.php` and `cp.php` for new routes). Replace `Craft::$app` calls and Yii request and response helpers as you touch each class ([services-and-di.md](references/services-and-di.md), [http-and-auth.md](references/http-and-auth.md)). If the controller had `$enableCsrfValidation = false` or a setting for it, exempt the route in `boot()` with `PreventRequestForgery::except()`.
+3. Controllers: Yii controllers are no longer routed. Port each to a plain (usually invokable) class using `RespondsWithFlash`, and route it from `routes/actions.php` so existing `actions/<handle>/<action>` URLs keep working (`routes/web.php` and `cp.php` for new routes). If the controllers can't all be ported at once, a small legacy routing module keeps the old ones reachable while you finish ([plugin-class.md](references/plugin-class.md)). Put `auth` first on every non-anonymous route, because `routes/actions.php` is also reachable by guests. Replace `Craft::$app` calls and Yii request and response helpers as you touch each class ([services-and-di.md](references/services-and-di.md), [http-and-auth.md](references/http-and-auth.md)). If the controller had `$enableCsrfValidation = false` or a setting for it, exempt the route in `boot()` with `PreventRequestForgery::except()`.
 4. Layout: icon to `resources/`, routes to `routes/`, translations to `lang/`, templates to `resources/views/` (or `resources/templates/`). Cull old incremental migrations and convert the rest to `database/migrations/` (see [database.md](references/database.md)).
 5. If the developer chose a new namespace in Stage 0, add it to `composer.json` `autoload.psr-4` next to the old one and move **most classes** into the Laravel-style layout as you port each one (controllers in `Http/Controllers`, request validation in `Http/Requests`, events in `Events`, handlers in `Listeners`, data objects in `Data`, Eloquent models in `Models`, jobs in `Jobs`, commands in `Console/Commands`, settings next to the plugin class). Leave nothing behind in Yii-style folders. Use `git mv` so history follows. Remove the old autoload root when nothing uses it, update `extra.class` if the plugin class moved, and record every renamed class in `UPGRADE.md`.
 
@@ -86,7 +87,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 **Goal:** the plugin's internal logic uses the Laravel container and events. Much of this happens inside the classes you ported in Stage 2. This stage finishes anything left, and is where the plugin's own events change.
 **References:** [services-and-di.md](references/services-and-di.md), [events-and-registries.md](references/events-and-registries.md), [models-and-validation.md](references/models-and-validation.md)
 
-1. Port services to plain classes, mark them `#[Singleton]`, and replace `Craft::$app` locator calls and plugin getters with injection or `app()`.
+1. Port services to plain classes, mark them `#[Singleton]` (or `#[Scoped]` if they hold per-request state), and replace `Craft::$app` locator calls and plugin getters with injection or `app()`.
 2. Port event handlers to the new event classes. Look up each replacement from the old constant's docblock. Never convert them with a regex. Register with `$events`, `Event::listen()` in `boot()`, or a subscriber.
 3. Replace `RegisterComponentTypesEvent` handlers with registries or plugin properties.
 4. Port your own events to Laravel event classes. Unless the developer chose a compatibility layer, remove the old Yii-style `EVENT_*` constants and event base classes, and add a before and after entry for each to `UPGRADE.md`.
@@ -122,7 +123,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 2. Widgets and utilities: new base classes and registration. Element types have no porting guide yet, so read the source and tell the developer.
 3. Legacy layer: decide what, if anything, to keep for downstream users (`class_alias()`, a `legacy/` autoload root, `Deprecator::log()`), and update `composer.json` autoloading for old and new namespaces. If the developer chose a clean break instead, finish `UPGRADE.md` now: every removed or renamed event, class, setting, route and variable should have a before and after entry, and the requirements and upgrade steps sections should be filled in.
 4. End state B: ask the developer to confirm, then remove `craftcms/yii2-adapter` from the plugin's `composer.json`. In a clean host project that has neither the adapter nor other plugins, test every feature. Confirm nothing pulls Yii in: `composer show craftcms/yii2-adapter` and `composer show yiisoft/yii2` should both report that the package is not installed. (Small `yiisoft/*` utility libraries such as `yiisoft/arrays` are dependencies of Craft 6 itself and are expected.)
-5. Re-run `scripts/scan-craft5.sh` on the plugin's native source. For end state B it should report no hits. Any intentional legacy-compatibility folder (for example `legacy/`) is the only expected exception, and it needs an explanation.
+5. Re-run `scripts/scan-craft5.sh` on the plugin's native source. If the plugin has a test suite, add an architecture test that fails when `src/` uses legacy `craft\` classes ([references/testing.md](references/testing.md)). For end state B it should report no hits. Any intentional legacy-compatibility folder (for example `legacy/`) is the only expected exception, and it needs an explanation.
 6. Run static analysis and, optionally, Laravel Pint.
 
 **Exit:** for end state B, the plugin works with the adapter absent, with no Yii classes pulled in, and the scan is clean apart from explained exceptions.
@@ -140,14 +141,15 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 | Migrations, `craft\db\Migration`, install migration | [database.md](references/database.md) |
 | Twig extensions, `craft.myplugin`, globals, rendering | [templates-and-twig.md](references/templates-and-twig.md) |
 | Field types, widgets, utilities, settings forms | [fields-widgets-forms.md](references/fields-widgets-forms.md) |
+| Custom element types | [element-types.md](references/element-types.md) |
 | Console, queue, scheduling, mail, translation, logging, assets, local dev | [other-areas.md](references/other-areas.md) |
-| Strategy, obsolete plugins, compat layers | [strategy.md](references/strategy.md) |
+| Strategy, large-plugin staging, obsolete plugins, compat layers, event bridges | [strategy.md](references/strategy.md) |
 | Setting up a host project and testing a port | [testing.md](references/testing.md) |
 
 ## Rules of thumb
 
 - A strict horizontal port first, with restructuring afterwards.
-- Initialization belongs in `boot()`, because `register()` runs too early for events.
+- Initialization belongs in `boot()`: `register()` runs before other providers exist, so it is only for early Laravel wiring (CSRF exemptions, rate limiters, Laravel event listeners).
 - Never instantiate services directly, and don't use static lookups such as `Plugin::getInstance()` or `Craft::$app` in ported code. Inject what you need (`Settings $settings`, `Sections $sections`) or resolve it with `app(ClassName::class)`. Bind the plugin's settings class in `boot()` so classes can type-hint it ([services-and-di.md](references/services-and-di.md)).
 - Keep old classes loadable where the database, project config or other code may reference them.
 - Do not use the adapter's own deprecation API in new code. Use `CraftCms\Cms\Support\Facades\Deprecator::log()`.

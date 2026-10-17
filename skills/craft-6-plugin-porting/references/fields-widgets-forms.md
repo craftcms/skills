@@ -2,6 +2,8 @@
 
 Source: Craft 6.x extend docs, "Field Types", "Widgets", "Settings + Config". The "Elements" and "Forms" pages were not fully reviewed. Read `CraftCms\Cms\Form` in the 6.x source or the Forms docs page before writing a non-trivial form.
 
+**API names changed during the alpha.** On 6.0.0-alpha.20 the settings API is `CraftCms\Cms\Form\{Form,FormContext}` with `settingsForm()`. Newer 6.x builds rename it to `CraftCms\Cms\Ui\{Ui,UiContext}`, `settingsUi(UiContext $context = new UiContext): Ui`, with nodes in `CraftCms\Cms\Ui\Nodes\*` and controls in `CraftCms\Cms\Ui\Controls\*`. The structure is the same. Check the installed package (`ls vendor/craftcms/cms/src/Form vendor/craftcms/cms/src/Ui`) and use whichever exists. Examples below use the alpha.20 names.
+
 ## Field types
 
 - Register: `protected array $fieldTypes = [PatternField::class];` on the plugin, or the `FieldTypes` registry in `boot()`.
@@ -17,13 +19,14 @@ Source: Craft 6.x extend docs, "Field Types", "Widgets", "Settings + Config". Th
 - Extend `CraftCms\Cms\Dashboard\Widgets\Widget`. Register with `protected array $widgets = [...]` or `WidgetTypes`.
 - Static: `displayName()`, `icon()`, `isSelectable()`, `allowMultipleInstances()`. Instance: `getTitle()`, `settingsForm()`, `getRules()`.
 - Widgets render client-side: `component()` returns a component name, `props()` returns props. For HTML only: `'craft:html-widget'` with `['html' => template(...)]`. Custom Vue components register via `Cp.$components.register(...)` in a published JS file.
+- A widget that only shows an HTML body can share a trait that returns `'craft:html-widget'` from `component()` and `['html' => template('plugin/_widgets/x', $vars, TemplateMode::Cp)]` from `props()`. Pass `TemplateMode::Cp` explicitly.
 - Never render user-supplied HTML/Twig in a widget, because anyone with CP access can configure widgets.
 - Template-driven widgets: Markdown files with YAML front matter in the project's `resources/widgets/`.
 
 ## Utilities, element types, and others
 
 - Utilities: `protected array $utilities = [...]` or `UtilityTypes`.
-- Element types: `protected array $elementTypes = [...]` or `ElementTypes`. No porting guide existed for elements when this skill was written, so read the 6.x source and the adapter's `@deprecated` tags, and tell the user.
+- Element types: `protected array $elementTypes = [...]` or `ElementTypes`. There is no official porting guide for elements. See [element-types.md](element-types.md) for the map, then read the 6.x source and the adapter's `@deprecated` tags, and tell the user what is unverified.
 - Auth methods: `AuthMethods` registry (see [events-and-registries.md](events-and-registries.md)).
 - GraphQL, link types, image transformers, asset file kinds: registries (same file).
 
@@ -67,4 +70,8 @@ public function settingsForm(FormContext $context = new FormContext): ?Form
 - UIDs are valid path segments (they contain hyphens, not dots), but avoid dots in your own keys.
 - To check the result, request the settings page as a logged-in user and read the Inertia JSON ([testing.md](testing.md)).
 - To show config-file overrides, read `config('craft.<handle>')`; a key is present when set in `config/craft/<handle>.php`.
+- A plugin with its own multi-page settings area doesn't use `settingsForm()` at all: set `$hasCpSettings = false` and `$hasReadOnlyCpSettings = true`, override `getSettingsResponse()` to redirect to your first settings page, and register each page with `CraftCms\Cms\Cp\Settings::registerSetting()` and `registerReadOnlySetting()`.
+- To show that a value is controlled from the config file, read the config (`Config::get('craft.<handle>')`) and add a `->warning(...)` to the field.
+- Custom controls or nodes with a Vue front end: bundle with the plugin's `$vite` input and register the component from JS with `window.Cp.$components.register(...)`. The PHP side implements the node or control contract and is registered with the matching registry.
+- Settings that have been removed or moved: override `setAttributes()` on the settings class and `unset()` the removed keys before calling `parent::setAttributes()`, so old project config and `config/craft/<handle>.php` files that still contain them don't break.
 - Optional: return a `FormRequest` class from `getSettingsRequestClass()` to validate the whole request instead of just the settings model. Rules then use `settings.`-prefixed keys.

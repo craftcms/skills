@@ -26,7 +26,7 @@ class Manager
 app(\MyOrg\Activity\Reporting\Manager::class)->generate(...);
 ```
 
-- Mark most services `#[Singleton]` so the container reuses the instance.
+- Mark most services `#[Singleton]` so the container reuses the instance. A service that holds per-request state (the current cart, the current user's context, a per-request cache) should be `#[\Illuminate\Container\Attributes\Scoped]` instead, so long-running workers (Octane, queue workers) don't leak that state between requests.
 - Never `new` a service, especially a singleton. Resolve it via the container or injection.
 - Services need no base class. Extending `CraftCms\Cms\Component\Component` adds validation, macros, array access and constructor config if wanted.
 - Do a strict horizontal port first. Restructure afterwards if desired (for example split large services into invokable "action" classes that can be dispatched as jobs, as Craft did with garbage collection).
@@ -56,7 +56,7 @@ Craft exposes its facades to Twig. See [templates-and-twig.md](templates-and-twi
 
 | Craft 5 / Yii | Craft 6 |
 | --- | --- |
-| `Plugin::getInstance()->getFoo()` getters | Resolve the service class from the container; drop the getter (keep a deprecated one only if a compat layer is needed) |
+| `Plugin::getInstance()->getFoo()` getters | Resolve the service class from the container; drop the getter. If other code has hundreds of call sites, keep a deprecated getter (for example a `serviceMap` trait on the plugin class that returns the legacy shims) while you move them, and remove it later |
 | `Plugin::setComponents([...])` | Not needed |
 | `Craft::createObject($class, $config)` | `app()->make($class, [...])` |
 | `Craft::$app->...` service locator | Inject the service, or `app()` / facade |

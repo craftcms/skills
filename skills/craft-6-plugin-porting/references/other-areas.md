@@ -8,13 +8,15 @@ Source: Craft 6.x extend docs, "Commands", "Jobs + Queue", "Scheduled Tasks", "M
 - `handle()` receives arguments by name. Other parameters are injected.
 - Register with `public array $commands = [...]` on the plugin, or define closures in `boot()` with `Artisan::command(...)`.
 - Use a plugin prefix (`my-plugin:`), avoid generic names such as `run`/`send`, and `command` is not allowed as an argument name.
-- Legacy invocation like `php craft plugin/install` still works. New: `ddev artisan craft:plugin:install`.
+- Legacy invocation like `php craft plugin/install` still works for core commands. To keep your own plugin's old `php craft my-plugin/things/list` calls working, give the command `$signature = 'my-plugin:things:list'` plus `protected $aliases = ['my-plugin/things', 'my-plugin/things/list'];`. New: `ddev artisan craft:plugin:install`.
 
 ## Queue jobs
 
 - Extend `CraftCms\Cms\Queue\Job` (replaces `craft\queue\BaseJob`). `execute()` becomes `handle()`, with DI in the signature. Constructor properties hold the data.
 - Dispatch with `dispatch(new Job(...))` or `Job::dispatch(...)`.
 - Jobs are not necessarily queued: add `Illuminate\Contracts\Queue\ShouldQueue` and `InteractsWithQueue` to be pushed to the queue.
+- Constructor properties become promoted `readonly` properties (call `parent::__construct()` if the base class needs it). `setProgress($queue, 0.2)` becomes `setProgress(20)` (an int percent, no queue argument). `RetryableJobInterface` (`getTtr()`, `canRetry()`) becomes `public int $timeout` and `public int $tries`.
+- Name jobs with a `Job` suffix and keep them in `Jobs/`.
 - `ttr` is now `timeout`. Jobs have UUIDs, and keep a `dateCompleted` instead of being deleted immediately (pruned in garbage collection).
 - Priority: no equivalent. Apps may set a `lowPriorityQueue` in general config. Tell users how you use the queue.
 - Job descriptions shown in the CP: use a prepared string, `I18N::prep(...)`.
@@ -41,6 +43,7 @@ Define `schedule(Schedule $schedule)` on the plugin (`HasScheduling`) using `com
 
 - `Craft::info()`, `Craft::error()` and friends become `Illuminate\Support\Facades\Log`.
 - Deprecation notices: `CraftCms\Cms\Support\Facades\Deprecator::log(__METHOD__, '...')`.
+- Garbage collection: listen for `CraftCms\Cms\GarbageCollection\Events\RunningGarbageCollection` to clean up your own tables.
 
 ## Assets
 
@@ -48,7 +51,7 @@ Define `schedule(Schedule $schedule)` on the plugin (`HasScheduling`) using `com
 - Vite: `protected array $vite = ['input' => [...], 'publicDirectory' => 'resources/dist', 'buildDirectory' => 'build']` and `laravel-vite-plugin` in `vite.config.js`. DDEV may need CORS and port settings. Each plugin needs a unique `port` and `hotFile` when developing several at once.
 - Legacy asset bundles: implement `CraftCms\Cms\View\LegacyAssets\LegacyAssetInterface` with `register(HtmlStack $htmlStack)` and register through `InternalAssetRegistry`. Deprecated stopgap, so prefer `$scripts`/`$styles`.
 - HTML fragments: `HtmlStack::html($html, Position::Head, $key)`. `View::POS_*` constants became the `Position` enum.
-- Plugin icons live in `resources/`.
+- Plugin icons live in `resources/`. If the CP nav icon doesn't show, see the CP nav note in [plugin-class.md](plugin-class.md).
 
 ## Filesystems
 

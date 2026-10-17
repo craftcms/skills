@@ -2,7 +2,7 @@
 
 This guide lists what changed in {{NEW_VERSION}} and what you need to update in your project, templates and custom code.
 
-> Fill in every `{{...}}` placeholder, delete sections that don't apply, and replace the example blocks with this plugin's real before/after code. Only list changes that actually happened. Verify every new class name and signature against the installed `craftcms/cms` 6.x source.
+> Fill in every `{{...}}` placeholder, delete sections that don't apply, and replace the example blocks with this plugin's real before/after code. Only list changes that actually happened, and only differences a user of the previous version would observe (not internal refactors). Keep entries one line per class where you can: `Added X.`, `Deprecated Y. Use X instead.`, `Removed Z. Replaced by W.` Verify every new class name and signature against the installed `craftcms/cms` 6.x source.
 
 ## Requirements
 

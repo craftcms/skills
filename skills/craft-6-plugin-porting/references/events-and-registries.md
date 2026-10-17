@@ -12,7 +12,22 @@ Naming pattern is object-action:
 - `...ing` (for example `EntryTypeDeleting`): before something happens. Replaces `EVENT_BEFORE_*`.
 - Past tense (for example `SectionSaved`): after it happened. Replaces `EVENT_AFTER_*`.
 
-There is no `sender`. You listen for the event class, wherever it came from. Instance-level events are rare.
+There is no `sender`. You listen for the event class, wherever it came from. Instance-level events are rare. A handler that used to be scoped by sender (`Event::on(User::class, EVENT_AFTER_SAVE, ...)`) becomes one listener on the generic event that checks the type itself:
+
+```php
+class ElementSavedListener
+{
+    public function handle(ElementSaved $event): void
+    {
+        if ($event->element instanceof User) { /* ... */ }
+        if ($event->element instanceof Address) { /* ... */ }
+    }
+}
+```
+
+Not every event is Craft's: Laravel's own events (`Illuminate\Auth\Events\Login`, `Logout`, `Illuminate\Mail\Events\MessageSending`) replace some Craft ones. Not every name follows the pattern either (`DefineDeletionBlockers`). Look each one up from the docblock.
+
+Listeners that run before the plugin is installed should return early (`if (!$this->plugin->isInstalled) return;`), because listeners are registered on every request.
 
 ## Handlers (Yii `Event::on` to Laravel listeners)
 
@@ -54,7 +69,7 @@ event($e = new DeliveryConfirmed);
 - First non-null return: `Event::until()` or `event(..., halt: true)`.
 - Implement `Illuminate\Contracts\Events\ShouldDispatchAfterCommit` to defer until the DB transaction commits.
 
-If your plugin's old events must keep working for downstream code, the legacy Yii event system cannot be proxied without the adapter. Craft forwards new events to Yii in a static `registerEvents()` method on legacy classes (see `craft\elements\User` and `CraftCms\Yii2Adapter\Event\EventCompatibility::boot()`).
+If your plugin's old events must keep working for downstream code, the legacy Yii event system cannot be proxied without the adapter. Craft forwards new events to Yii in a static `registerEvents()` method on legacy classes (see `craft\elements\User` and `CraftCms\Yii2Adapter\Event\EventCompatibility::boot()`). The bridge pattern for your own events, and when to choose it over a clean break, is in [strategy.md](strategy.md#bridging-old-yii-events-needs-the-adapter).
 
 ## Registries (replace `RegisterComponentTypesEvent`)
 
@@ -96,7 +111,20 @@ Registry-like catalogs that take an identifier plus a closure (lazily invoked, D
 - Cache-clearing options: `CraftCms\Cms\Utility\Utilities\ClearCaches::add()` / `addTag()`
 - Migration tracks: `CraftCms\Cms\Database\Commands\MigrateCommand::registerMigrator()` (normally use the plugin's default track)
 
-Custom registries: extend `TypeRegistry`, set `CONTRACT`, optional `DEFAULT_TYPES` and `PROTECTED_TYPES`, override `identity()` if class string is not the identity.
+Custom registries: extend `TypeRegistry`, set `CONTRACT`, optional `DEFAULT_TYPES` and `PROTECTED_TYPES`, override `identity()` if class string is not the identity. Make it a singleton so every consumer sees the same registrations:
+
+```php
+#[\Illuminate\Container\Attributes\Singleton]
+class GatewayTypes extends \CraftCms\Cms\Component\TypeRegistry
+{
+    protected const ?string CONTRACT = GatewayInterface::class;
+    protected const array DEFAULT_TYPES = [Dummy::class, Manual::class];
+}
+
+// another plugin, in boot():  $gatewayTypes->register(MyGateway::class);
+```
+
+Other core registries that plugins use: `CraftCms\Cms\Gql\GqlArguments::register('hasProduct', HasProduct::class)`, and (on newer 6.x builds) the control panel UI node and control type registries. Where the plugin kept a legacy `EVENT_REGISTER_*_TYPES` event, reconcile old handlers into the registry after every plugin has booted (`app()->booted(...)`).
 
 ## Porting a plugin's own events (clean break, verified)
 

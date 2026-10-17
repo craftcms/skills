@@ -12,7 +12,8 @@ Source: Craft 6.x extend docs, "Templates + Rendering", "Behaviors" (macros), "H
 | Switching modes with `View::TEMPLATE_MODE_SITE` | `template($t, $vars, TemplateMode::Site)` or `TemplateMode::with(TemplateMode::Site, fn () => ...)` |
 | Sandboxed rendering | `sandboxedTemplate()`, `renderSandboxedString()`, `renderSandboxedObjectTemplate()` |
 
-- Default mode follows the request. Only use `TemplateMode::Site` for templates a developer chose or defined in a settings UI. Never assume a user-space template exists.
+- The helpers are namespaced functions: `use function CraftCms\Cms\template;` (and `pageTemplate`, `t`, and so on) at the top of the file. They return a `string`, so a controller can return the result directly.
+- Default mode follows the request. A plugin's own CP templates (widget bodies, email or download pages) rendered during a front-end request need `TemplateMode::Cp` passed explicitly, or they are not found. Only use `TemplateMode::Site` for templates a developer chose or defined in a settings UI. Never assume a user-space template exists.
 - Mark classes, properties or methods as sandbox-safe with `#[CraftCms\Cms\Twig\Attributes\AllowedInSandbox]`.
 - Laravel's `view()` also resolves Blade templates in your template root. Blade gets the same globals but not Twig's filters/functions.
 - Events: `TemplateRendering`/`TemplateRendered` (and `PageTemplateRendering`/`PageTemplateRendered` for page templates) in `CraftCms\Cms\Twig\Events`.
@@ -21,6 +22,7 @@ Source: Craft 6.x extend docs, "Templates + Rendering", "Behaviors" (macros), "H
 
 - Your plugin automatically gets a CP template root at `resources/views/` (falls back to `resources/templates/` or top-level `templates/`).
 - Site template roots: `public array $siteTemplateRoots = ['theme/light' => __DIR__.'/resources'];` or `TemplateRoots::register()`.
+- Templates you have not moved yet: register the old folder explicitly, `app(TemplateRoots::class)->register(TemplateMode::Cp, $this->handle, $path)` in `boot()`, and remove it once the templates are in `resources/views/`.
 - Prefer exposing an API that renders HTML fragments (for example `{{ form('handle').render() }}`) over shipping site-mode templates.
 
 ## Twig extensions
@@ -38,13 +40,13 @@ Craft's internal Twig extensions were split into `CraftCms\Cms\Twig\Extensions\*
 Craft 5 `CraftVariable::EVENT_INIT` + `$variable->set('myplugin', ...)` becomes a macro (`CraftCms\Cms\Twig\Variables\CraftVariable`):
 
 ```php
-CraftVariable::macro('track', function () {
-    return function (string $eventName, array $data = [], int $value = 1) {
-        // ...
-    };
+CraftVariable::macro('track', function (string $eventName, array $data = [], int $value = 1) {
+    // ...
 });
 // {% do craft.track('pageView', { elementId: entry.id }) %}
 ```
+
+The macro closure is called directly with the arguments from Twig, and `$this` is the `CraftVariable`. Do **not** return a second closure from it: that closure is never run, so the call silently does nothing. To expose a service, return it: `CraftVariable::macro('reports', fn () => app(Reports::class))`. To expose a query, build and return it: `CraftVariable::macro('orders', function (array $criteria = []) { $query = Order::find(); \CraftCms\Cms\Support\Typecast::configure($query, $criteria); return $query; })`. Check `Typecast` exists in the installed `craftcms/cms` before using it.
 
 Unknown calls on `CraftVariable` forward to `CraftCms\Cms\Cms`, then Laravel's application, so generic macro names can be intercepted. Use distinctive names.
 

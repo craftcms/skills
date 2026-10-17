@@ -25,12 +25,15 @@ Route::post('events/track', TrackEvent::class);
 
 ## Controllers
 
-- No base controller to extend. Plain classes (grouped or invokable).
+- No base controller to extend. Plain classes: invokable for a single action, or a grouped controller with resource-style methods (`index`, `store`, `destroy`) routed as `Route::post('cart/update', [CartController::class, 'update'])`. Grouped controllers are the norm for plugins with many actions. A shared base class of your own (for example for settings screens) is fine.
 - Replace `actionFoo()` methods and `$this->request`, `$this->requirePostRequest()`, `requireLogin()` etc. with injected `Illuminate\Http\Request`, middleware and route definitions.
 - Inject dependencies in the constructor (multi-action) or `__invoke()`/`handle()` (single action).
 - `use CraftCms\Cms\Http\RespondsWithFlash` for `asSuccess()`, `asFailure()` and the JSON/model variants.
-- Unverified: how Craft 5 `$allowAnonymous` and `requireLogin()` map over. The docs say authorization is done with middleware, so expect route placement and `can:`/auth middleware.
-- Validate input with `$request->validate([...])`, a `FormRequest`, or a ruleset. See [models-and-validation.md](models-and-validation.md).
+- `$allowAnonymous` and `requireLogin()`: authorization is done with route middleware. **`routes/actions.php` is also reachable by guests at the site action URL**, so route placement alone does not protect anything. Put `auth` first on every route that needs a login (`->middleware(['auth', 'can:...'])`), and group anonymous routes together with a comment saying they are anonymous on purpose (and rate-limit them).
+- Other core middleware: `CraftCms\Cms\Http\Middleware\RequireAdmin` (for `requireAdmin()`) and `RequireCpRequest`.
+- Per-request locks that replaced the Yii mutex: `Cache::lock("order:$number", 5)->block(5, fn () => ...)`.
+- Validate input with `$request->validate([...])`, a `FormRequest`, or a ruleset. See [models-and-validation.md](models-and-validation.md). `$request->validate()` returns only the keys that have rules. If you also need other input, read it from the request (`$request->input('x')`) afterwards. Plugins that already validate in their models and services can keep doing that and call `asModelFailure()`; moving validation to the input layer is a direction, not a prerequisite.
+- Signed params: `getValidatedBodyParam('successMessage')` (tamper-proof values from `successMessageInput()` and similar) becomes `request()->getSigned()('successMessage')`. Do not replace it with `$request->input()`, which reads an unsigned, user-controlled value.
 - Responses: `abort()`, `abort_if()`, `abort_unless()`, `redirect()`, `back()->with()`, `back()->withInput()`.
 - Render templates with `template()`, `pageTemplate()` (CP layout or page-lifecycle hooks), `view()` (Blade).
 - Rate limiting and hardening: define a `RateLimiter::for()` in `boot()` and apply `throttle:<name>` middleware to routes.
@@ -39,7 +42,10 @@ Route::post('events/track', TrackEvent::class);
 ## Permissions and authorization
 
 - Register permissions with `getPermissions()` returning `CraftCms\Cms\User\Data\Permission` objects (`key`, `label`, optional `nested`). Keys are globally unique, so name them explicitly with a plugin prefix.
-- Guard routes: `->middleware(['can:activity-viewReports'])`.
+- Guard routes: `->middleware(['auth', 'can:activity-viewReports'])`. Nest groups to translate a controller `init()` that required one permission and then a second per action.
+- Permissions can nest (`new Permission(key: ..., label: ..., nested: new Collection([...]))`, several levels deep), and be generated per entity (for example one per product type uid).
+- Element policies: extend `CraftCms\Cms\Element\Policies\ElementPolicy` (`view`, `save`, `delete`, `duplicate`, each taking the user and the element), register it with `Gate::policy(Product::class, ProductPolicy::class)`, and authorize in a controller with `Gate::authorize('save', $element)`. To add rules to an existing policy, listen for `CraftCms\Cms\Auth\Events\ElementAuthorizing` and `match ($event->ability)`.
+- Per-object rules that permissions can't express (store access, ownership) are plain `abort_unless(..., 403)` checks.
 - Checks: `Gate::check('ability')`, `Gate::authorize('view', $report)`, `currentUserElement()->can('ability')` (`CraftCms\Cms\currentUserElement()`), `$user->can('ability', $subject)`. Bare ability names fall through to Craft permissions.
 - Compound checks: a policy class registered with `Gate::policy(Report::class, ReportPolicy::class)`. Ability names then reduce to `view`, `save`, etc.
 - Intercept: `Gate::before()`, `Gate::after()`, or the `GateEvaluated` event.
@@ -73,6 +79,16 @@ Route::post('events/track', TrackEvent::class);
 Route::post('save', SaveController::class);
 ```
 
+Keep the kebab-case action path strings exactly as they were (`orders/get-order-address`): the method names change, the URLs must not. To rename an action URL, route both names to the controller and log the old one so you can remove it later:
+
+```php
+Route::get('cart/get-cart', [CartController::class, 'show'])
+    ->middleware(LogDeprecatedAction::replacedBy('plugin/cart/get-cart', 'plugin/cart/show'));
+// where LogDeprecatedAction is your own middleware that calls Deprecator::log(...)
+```
+
+`Route::match(['post', 'delete'], ...)` keeps both verbs a Yii action accepted.
+
 ## CSRF
 
 Laravel verifies CSRF tokens on web routes (missing token: 419). A Yii controller with `$enableCsrfValidation = false` (or a plugin setting for it) becomes a route exemption, registered in the plugin's `boot()`:
@@ -83,10 +99,15 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 public function boot(\CraftCms\Cms\Route\Routes $routes): void
 {
     if (!$this->getSettings()->enableCsrfProtection) {
-        PreventRequestForgery::except([$routes->actionTriggerUriPrefix() . "/$this->handle/save"]);
+        PreventRequestForgery::except([
+            $routes->actionTriggerUriPrefix() . "/$this->handle/save",
+            $routes->cpActionTriggerUriPrefix() . "/$this->handle/save",
+        ]);
     }
 }
 ```
+
+`routes/actions.php` is registered under both prefixes, so exempt both, or the CP twin of the URL still returns 419. Exemptions are also the right tool for webhooks and off-site payment returns. `PreventRequestForgery::except()` and `RateLimiter::for()` can go in `register()` as well as `boot()`.
 
 Craft uses the same mechanism for `graphql/api`. (The upstream native guest-entries port instead marked its setting deprecated and left CSRF to the application.)
 

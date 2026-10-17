@@ -42,6 +42,26 @@ Plugins that add new features or new types of existing components should:
 2. Release that as an alpha, so others can test the upgrade in real projects and report issues with Craft, the adapter or the plugin.
 3. Migrate gradually, using the alpha period.
 
+A **very large plugin** (hundreds of classes) is better ported bottom-up by dependency than by the five stages in one pass. A layout that has worked:
+
+1. A structural-only commit: move the old code to `src-yii2/` (same `craft\myplugin\` namespace, keep both roots in `autoload.psr-4`) and create the new `src/` tree. Nothing else changes, so the diff is reviewable. Use two `git mv` steps for a case-only rename on macOS.
+2. Fill `src/` in order of dependency, one commit per cluster: enums and table-name constants, interfaces, events, helpers, simple models, services, the plugin class, controllers and routes, records to Eloquent, and element types last.
+3. For every class you move, leave a thin alias at the old path so downstream code keeps working:
+
+```php
+/** @deprecated use {@see \CraftCms\MyPlugin\Tax\Data\TaxCategory} */
+class_alias(\CraftCms\MyPlugin\Tax\Data\TaxCategory::class, 'craft\myplugin\models\TaxCategory');
+/** @phpstan-ignore-next-line Gives IDEs and static analysis a real symbol. */
+if (false) {
+    class TaxCategory extends \CraftCms\MyPlugin\Tax\Data\TaxCategory {}
+}
+```
+
+4. Legacy services delegate to the new ones inline (`app(New::class)->method()`), with a `@deprecated` docblock naming the replacement.
+5. Keep a work-in-progress changelog and add an entry per stage in the same commit as the move (see [assets/UPGRADE.template.md](../assets/UPGRADE.template.md)).
+
+While the plugin is mid-port, it needs a `craftcms/cms` constraint that resolves (`6.x-dev` until releases exist) and, if the legacy tree is shipped, the adapter in `require` (not `require-dev`), or downstream installs break.
+
 If the plugin has its own extension surface (events, service APIs), decide and tell users whether it will be fully ported during the alpha, and whether a compatibility layer will ship.
 
 ## Is the plugin still needed?
@@ -55,6 +75,21 @@ Some low-level plugins are obsolete in Laravel:
 ## Clean break: Laravel events and an upgrade guide
 
 If the developer doesn't want a compatibility layer, move the plugin's own Yii-style events (`EVENT_*` constants and `Event` subclasses) to Laravel event classes, remove the old ones, and write down what users must change in `UPGRADE.md` (start from `assets/UPGRADE.template.md`). Each removed event gets a before and after listener example. This is the simplest route to an adapter-free release, because the legacy Yii event system can't be proxied without the adapter.
+
+## Bridging old Yii events (needs the adapter)
+
+A third option for plugins with many downstream consumers: dispatch the new Laravel event and also trigger the old Yii event, so existing `Event::on(Class, EVENT_*)` handlers keep working.
+
+- The new event classes carry the data (promoted constructor properties). The legacy class keeps its `EVENT_*` constants, and a static `registerEvents()` listens for the Laravel event and calls `trigger()` on the legacy component if it has handlers. Call each one from `boot()`.
+- For registration events (`EVENT_REGISTER_*_TYPES`), fold old handlers into the new registry after every plugin has booted (`app()->booted(...)`), not during `boot()`.
+- You can cheaply keep old before/after names with an empty subclass (`FooSaving extends FooEvent`).
+- This requires the adapter, so it is end state A for that API. Mark the legacy constants `@deprecated`, and plan their removal.
+
+Both listeners and bridges must check the type themselves: Laravel events have no `sender`, so a handler on a shared event (such as `ElementSaved`) uses `instanceof`.
+
+## Scope: removing features
+
+Dropping a feature during the port is a legitimate outcome (for example a rarely used subsystem). Record it in the upgrade notes, don't drop its database tables, and make the decision in Stage 0.
 
 ## Compatibility layers for your own legacy API
 

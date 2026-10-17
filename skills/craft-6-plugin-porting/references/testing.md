@@ -110,3 +110,21 @@ $type->setFieldLayout($layout);
 - **Baseline first:** while the adapter-only Stage 1 works, save each endpoint's response body and key headers to files. After every later stage, diff against them. A byte-identical diff is the strongest evidence that a port preserved behavior. It cannot see behavior that isn't in the response (cache lifetimes, cookies, error paths), so test those directly.
 - **Run test commands from a script** with absolute tool paths (`/usr/bin/curl`) and `/bin/bash script.sh`: shell hooks (zoxide, mise) occasionally break `PATH` right after a `cd` into a new project.
 - **Cache and TTL checks:** read the cache from tinker (`DependencyCache::get($key)`), use a short TTL such as `PT2S` and check the entry is gone after a `sleep`, and save an element to prove invalidation.
+
+## 10. A native test suite (from a large port)
+
+For a plugin you will keep, move tests off the Yii/Codeception harness:
+
+- Dev stack: `orchestra/testbench`, `pestphp/pest` with `pest-plugin-arch` and `pest-plugin-laravel`, `larastan/larastan`, optionally `rector/rector`. Add `craftcms/plugin-installer` and `pestphp/pest-plugin` to `config.allow-plugins`, and map `Tests\` and a `Workbench\` namespace in `autoload-dev`.
+- Park the old tests in `tests-yii2/` as non-running reference, and port them to Pest in the same stage as the code they test.
+- **Boot test:** assert that the plugin's registrations take effect (`expect(app(ElementTypes::class)->types()->contains(Thing::class))->toBeTrue()`, and that expected macros resolve).
+- **Architecture test as the exit gate:** it is stricter than the grep scan.
+
+```php
+arch('src has no legacy Craft classes')
+    ->expect('src')->not->toUse('craft')->ignoring('craft\\myplugin');
+arch('no debug functions')->expect('src')->not->toUse(['die', 'dd', 'dump']);
+```
+
+- Environment gotchas: tests that touch elements may need `CRAFT_EDITION` set to the edition the plugin requires, and a leaked `$_SERVER['CRAFT_SITE']` carries over between tests. Reset both in `TestCase::setUp()`.
+- Raw SQL that works on MySQL can fail on SQLite or Postgres; use the schema builder or `tpetry/laravel-query-expressions` for cross-database expressions.
