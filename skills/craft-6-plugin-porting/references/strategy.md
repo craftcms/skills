@@ -21,7 +21,7 @@ Remember that the adapter is a supported destination too. If end state B stalls 
 
 ## Choose the namespace
 
-Ask the developer, and don't change a namespace without their agreement. Craft 5 plugins usually use lowercase Yii-style namespaces (`craft\myplugin`); Laravel convention is PascalCase PSR-4 (`CraftCms\MyPlugin`, `MyOrg\MyPlugin`).
+Ask the developer, and don't change a namespace without their agreement. Craft 5 plugins usually use lowercase Yii-style namespaces (`craft\myplugin`); Laravel convention is PascalCase PSR-4 under your own vendor namespace (`MyOrg\MyPlugin`). A plugin does not have to use the `CraftCms` namespace: that one belongs to Craft's own first-party packages.
 
 | Choice | Upside | Downside |
 | --- | --- | --- |
@@ -49,11 +49,11 @@ A **very large plugin** (hundreds of classes) is better ported bottom-up by depe
 3. For every class you move, leave a thin alias at the old path so downstream code keeps working:
 
 ```php
-/** @deprecated use {@see \CraftCms\MyPlugin\Tax\Data\TaxCategory} */
-class_alias(\CraftCms\MyPlugin\Tax\Data\TaxCategory::class, 'craft\myplugin\models\TaxCategory');
+/** @deprecated use {@see \MyOrg\MyPlugin\Tax\Data\TaxCategory} */
+class_alias(\MyOrg\MyPlugin\Tax\Data\TaxCategory::class, 'craft\myplugin\models\TaxCategory');
 /** @phpstan-ignore-next-line Gives IDEs and static analysis a real symbol. */
 if (false) {
-    class TaxCategory extends \CraftCms\MyPlugin\Tax\Data\TaxCategory {}
+    class TaxCategory extends \MyOrg\MyPlugin\Tax\Data\TaxCategory {}
 }
 ```
 

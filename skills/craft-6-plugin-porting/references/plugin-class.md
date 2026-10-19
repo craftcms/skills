@@ -97,7 +97,7 @@ Craft 6 plugins are Laravel packages, so the default is to move **most of the pl
 
 | Craft 5 / Yii | Craft 6 / Laravel | Core examples |
 | --- | --- | --- |
-| `src/Plugin.php` (`craft\myplugin\Plugin`) | `src/Plugin.php` (`CraftCms\MyPlugin\Plugin`) | |
+| `src/Plugin.php` (`craft\myplugin\Plugin`) | `src/Plugin.php` (`MyOrg\MyPlugin\Plugin`) | |
 | `src/models/Settings.php` | `src/Settings.php` (next to the plugin class) | |
 | `src/controllers/` | `src/Http/Controllers/` | `CraftCms\Cms\Http\Controllers\AddressesController` |
 | request validation (new) | `src/Http/Requests/` (`FormRequest`) | `CraftCms\Cms\Http\Requests\...` |
