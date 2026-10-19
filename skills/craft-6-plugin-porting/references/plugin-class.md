@@ -68,7 +68,7 @@ When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\P
 
 Test after each of these: the plugin still installs and enables, and its settings load from project config unchanged.
 
-**If the controllers cannot all be ported yet** (a large plugin), you can keep the old Yii controllers reachable with a routing shim. The 404 happens because Yii resolves `plugin-handle/controller/action` through `Craft::$app->getModule('plugin-handle')`, and that returns `null` once the plugin is no longer a Yii module. Register a tiny module under the same id from `boot()`:
+**Last resort, untested here:** for a very large plugin whose controllers cannot all be ported at once, the port of a large plugin used a routing shim to keep the old Yii controllers reachable. We have not tried this ourselves, and the shim was later removed, so treat it as a lead to verify, not a recommendation. Default to porting the controllers. The 404 happens because Yii resolves `plugin-handle/controller/action` through `Craft::$app->getModule('plugin-handle')`, and that returns `null` once the plugin is no longer a Yii module. Register a tiny module under the same id from `boot()`:
 
 ```php
 class LegacyRoutingModule extends \yii\base\Module
@@ -80,7 +80,7 @@ class LegacyRoutingModule extends \yii\base\Module
 \Craft::$app->setModule($this->handle, new LegacyRoutingModule($this->handle));
 ```
 
-This only works when the controllers don't use `$this->module`. It needs the adapter, so remove it, and the old controllers, when the last controller is ported. Don't use it as a reason to skip porting controllers.
+It would only work while the adapter is installed, and only if the controllers don't use `$this->module`. Remove it, and the old controllers, when the last controller is ported. Don't use it as a reason to skip porting controllers.
 
 Other things a switch to the native class breaks quietly:
 
