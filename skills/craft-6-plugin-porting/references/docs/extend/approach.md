@@ -15,7 +15,7 @@ Some low-level plugins may no longer be necessary in the Laravel ecosystem, but 
 Examples of this are:
 
 - **Mail transport adapters** — Projects can set up mailers via `config/mail.php` and select one in **Settings → Email**.
-- **Custom log back-ends** — As with prior versions of Craft, plugins may not be initialized early enough in the app’s lifecycle to capture a complete picture. Consider whether projects can effectively use Laravel’s built-in [logging](laravellogging) tools.
+- **Custom log back-ends** — As with prior versions of Craft, plugins may not be initialized early enough in the app’s lifecycle to capture a complete picture. Consider whether projects can effectively use Laravel’s built-in [logging](https://laravel.com/framework/docs/13.x/logging) tools.
 
 > **Warning:**
 > Filesystems have been completely removed in Craft 6.x.
