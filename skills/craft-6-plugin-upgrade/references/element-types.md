@@ -1,6 +1,6 @@
 # Element types
 
-The Craft 6.x docs have no porting guide for custom element types. This page summarizes the shape of a native element type, taken from a large ported plugin and from Craft's own `Entry` and `Asset`. Treat it as a map, and read the installed `craftcms/cms` source for each class before writing code (`CraftCms\Cms\Entry\Elements\Entry` is the best template). Say plainly to the developer which parts you could not verify.
+The Craft 6.x docs have no upgrade guide for custom element types. This page summarizes the shape of a native element type, taken from a large plugin that has been upgraded and from Craft's own `Entry` and `Asset`. Treat it as a map, and read the installed `craftcms/cms` source for each class before writing code (`CraftCms\Cms\Entry\Elements\Entry` is the best template). Say plainly to the developer which parts you could not verify.
 
 ## The pieces
 

@@ -58,9 +58,9 @@ PHP 8.5 is required, so 8.2 to 8.5 features are available (property hooks, `#[Ov
 
 ## Switching to the native base class (Stage 2): what stops working
 
-When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\Plugin`, the adapter no longer treats the plugin as a Yii module. Port these at the same time:
+When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\Plugin`, the adapter no longer treats the plugin as a Yii module. Upgrade these at the same time:
 
-- **Controllers and action URLs:** Yii controllers are not routed. Port them and register `routes/actions.php` ([http-and-auth.md](http-and-auth.md)).
+- **Controllers and action URLs:** Yii controllers are not routed. Upgrade them and register `routes/actions.php` ([http-and-auth.md](http-and-auth.md)).
 - **Settings page:** `settingsHtml()` is not used. Implement `settingsForm()` ([fields-widgets-forms.md](fields-widgets-forms.md)).
 - **Settings model:** `createSettings()` must return a `PluginSettings`. It is `protected static function createSettings(): ?PluginSettings` (static, unlike `createSettingsModel()`).
 - **Initialization:** `init()` becomes `boot()`, which accepts injected services, for example `boot(\CraftCms\Cms\Route\Routes $routes)`.
@@ -68,7 +68,7 @@ When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\P
 
 Test after each of these: the plugin still installs and enables, and its settings load from project config unchanged.
 
-**Last resort, untested here:** for a very large plugin whose controllers cannot all be ported at once, the port of a large plugin used a routing shim to keep the old Yii controllers reachable. We have not tried this ourselves, and the shim was later removed, so treat it as a lead to verify, not a recommendation. Default to porting the controllers. The 404 happens because Yii resolves `plugin-handle/controller/action` through `Craft::$app->getModule('plugin-handle')`, and that returns `null` once the plugin is no longer a Yii module. Register a tiny module under the same id from `boot()`:
+**Last resort, untested here:** for a very large plugin whose controllers cannot all be upgraded at once, a large plugin's upgrade used a routing shim to keep the old Yii controllers reachable. We have not tried this ourselves, and the shim was later removed, so treat it as a lead to verify, not a recommendation. Default to upgrading the controllers. The 404 happens because Yii resolves `plugin-handle/controller/action` through `Craft::$app->getModule('plugin-handle')`, and that returns `null` once the plugin is no longer a Yii module. Register a tiny module under the same id from `boot()`:
 
 ```php
 class LegacyRoutingModule extends \yii\base\Module
@@ -80,7 +80,7 @@ class LegacyRoutingModule extends \yii\base\Module
 \Craft::$app->setModule($this->handle, new LegacyRoutingModule($this->handle));
 ```
 
-It would only work while the adapter is installed, and only if the controllers don't use `$this->module`. Remove it, and the old controllers, when the last controller is ported. Don't use it as a reason to skip porting controllers.
+It would only work while the adapter is installed, and only if the controllers don't use `$this->module`. Remove it, and the old controllers, when the last controller is upgraded. Don't use it as a reason to skip upgrading controllers.
 
 Other things a switch to the native class breaks quietly:
 
@@ -93,7 +93,7 @@ Other things a switch to the native class breaks quietly:
 
 ## Class organization (the default: move most things into Laravel-style namespaces)
 
-Craft 6 plugins are Laravel packages, so the default is to move **most of the plugin's classes** out of Yii-style folders and into the namespaces and directories Laravel developers expect. Do this as you port each class (Stage 2 onwards), unless the developer declined a namespace change in Stage 0. Craft's own code is organized this way (by feature, then by role).
+Craft 6 plugins are Laravel packages, so the default is to move **most of the plugin's classes** out of Yii-style folders and into the namespaces and directories Laravel developers expect. Do this as you upgrade each class (Stage 2 onwards), unless the developer declined a namespace change in Stage 0. Craft's own code is organized this way (by feature, then by role).
 
 | Craft 5 / Yii | Craft 6 / Laravel | Core examples |
 | --- | --- | --- |

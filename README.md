@@ -6,7 +6,7 @@
 
 | Skill | Description |
 | --- | --- |
-| [`craft-6-plugin-porting`](skills/craft-6-plugin-porting/SKILL.md) | Walks a developer and their agent through porting a Craft 5 (Yii 2) plugin or module to Craft 6 (Laravel) in stages, from running on 6.x with the Yii 2 adapter to native Laravel code. Craft 6 is in alpha, so the bundled docs snapshot may lag behind. |
+| [`craft-6-plugin-upgrade`](skills/craft-6-plugin-upgrade/SKILL.md) | Walks a developer and their agent through upgrading a Craft 5 (Yii 2) plugin or module to Craft 6 (Laravel) in stages, from running on 6.x with the Yii 2 adapter to native Laravel code. Craft 6 is in alpha, so the bundled docs snapshot may lag behind. |
 
 ## Structure
 

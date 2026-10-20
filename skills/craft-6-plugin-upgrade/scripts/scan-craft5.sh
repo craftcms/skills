@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Inventory Craft 5 / Yii 2 APIs in a plugin or module so a port can be planned.
+# Inventory Craft 5 / Yii 2 APIs in a plugin or module so an upgrade can be planned.
 # Usage: scan-craft5.sh [path]   (defaults to the current directory)
 #        VERBOSE=1 scan-craft5.sh [path]   also prints the first matches for each area
 # Read-only. Prints match counts per area, the plugin's own events, and the package layout.

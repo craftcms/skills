@@ -9,7 +9,7 @@ This is the minimum to get a plugin running on Craft 6.x. Everything else is abo
 1. Resolve all Craft 5.x deprecation warnings first. The adapter does not work otherwise.
 2. `composer require craftcms/yii2-adapter` in the **plugin** package. Do not assume the host project includes it.
 3. Require `craftcms/cms` at `^6.0.0` and PHP `^8.5` (use `6.x-dev` for the adapter and cms while no matching release exists, and set `minimum-stability` accordingly). If `config.platform.php` is set lower than 8.5, remove or raise it: Composer would otherwise refuse the adapter.
-4. **Keep the legacy base class (`craft\base\Plugin`) for now.** The adapter routes `actions/<handle>/<controller>` URLs only to plugins that are Yii modules. After switching to `CraftCms\Cms\Plugin\Plugin`, those URLs return 404 until the controllers are ported and routed (Stage 2). The upstream compatibility branch of `craftcms/guest-entries` did exactly this: a Composer constraint change and `attributes(): array`.
+4. **Keep the legacy base class (`craft\base\Plugin`) for now.** The adapter routes `actions/<handle>/<controller>` URLs only to plugins that are Yii modules. After switching to `CraftCms\Cms\Plugin\Plugin`, those URLs return 404 until the controllers are upgraded and routed (Stage 2). The upstream compatibility branch of `craftcms/guest-entries` did exactly this: a Composer constraint change and `attributes(): array`.
 5. Update signatures of overridden methods that the legacy classes still provide, notably `attributes()` and `attributeLabels()`. If the plugin doesn't override them, nothing to do.
 6. Test with the adapter required only by this plugin: remove other plugins from the host project first, because the adapter activates whenever any installed plugin requires it. See [testing.md](testing.md).
 7. A plugin shows as "Craft 6.0-ready" in the control panel once it tags a new major version requiring `craftcms/cms:^6.0.0` and adopts the new base class (Stage 2). Cross-compatible 5.x/6.x releases are not possible.
@@ -18,7 +18,7 @@ During alpha/beta a project may need `CRAFT_DISABLED_PLUGINS="*"` in `.env` to s
 
 ## Base class (Stage 2)
 
-Switch only together with the controller and route port. See [plugin-class.md](plugin-class.md).
+Switch only together with the controller and route upgrade. See [plugin-class.md](plugin-class.md).
 
 ```php
 use CraftCms\Cms\Plugin\Plugin as BasePlugin;

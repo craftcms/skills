@@ -12,7 +12,7 @@ declare(strict_types=1);
  * with the source commit so readers know how old the snapshot is.
  *
  * Maintainers only: this deletes and rebuilds references/docs/ and uses the network.
- * It is not part of the porting workflow.
+ * It is not part of the upgrade workflow.
  *
  * Usage:
  *     php scripts/sync-docs.php                     # shallow, sparse clone of the default branch

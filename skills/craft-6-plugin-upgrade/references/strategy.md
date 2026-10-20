@@ -1,4 +1,4 @@
-# Choosing a porting strategy
+# Choosing an upgrade strategy
 
 Source: Craft 6.x extend docs, "Approach" and "The Adapter".
 
@@ -9,7 +9,7 @@ Decide this with the developer in Stage 0. It sets how many stages to run.
 | End state | Adapter | Stages | When it fits |
 | --- | --- | --- | --- |
 | **A. Ship on the adapter** | Required by the released plugin | 1 required, 2 to 5 optional | Large plugin, limited time, or other code that depends on legacy behavior |
-| **B. Adapter-free** | Required **while porting**, but not used or required in the release | All, ending with removal in Stage 5 | Small or medium plugin, or a maintainer who wants no Yii dependency |
+| **B. Adapter-free** | Required **while upgrading**, but not used or required in the release | All, ending with removal in Stage 5 | Small or medium plugin, or a maintainer who wants no Yii dependency |
 
 End state B treats the adapter as scaffolding. The plugin runs on Craft 6 after Stage 1, and each later stage replaces something the adapter was covering. Proof of completion:
 
@@ -25,14 +25,14 @@ Ask the developer, and don't change a namespace without their agreement. Craft 5
 
 | Choice | Upside | Downside |
 | --- | --- | --- |
-| Conventional namespace | Matches Laravel and Craft 6 style. Doubles as a progress marker: ported classes are in the new namespace, anything still in the old one is not ported yet. | Breaking change for code that references your classes: list every rename in `UPGRADE.md`. |
-| Keep the old namespace | Fewer breaking changes. | Ported and unported code look alike, so progress is harder to see. |
+| Conventional namespace | Matches Laravel and Craft 6 style. Doubles as a progress marker: upgraded classes are in the new namespace, anything still in the old one is not upgraded yet. | Breaking change for code that references your classes: list every rename in `UPGRADE.md`. |
+| Keep the old namespace | Fewer breaking changes. | Upgraded and not-yet-upgraded code look alike, so progress is harder to see. |
 
 Recommend the conventional namespace by default: it is what Craft's own code and the docs' examples use, and it makes progress visible. While moving, keep both namespaces in `composer.json` `autoload.psr-4`, and remove the old one once nothing uses it (unless you keep a deliberate legacy layer). Where each kind of class goes is in [plugin-class.md](plugin-class.md#class-organization-the-default-move-most-things-into-laravel-style-namespaces).
 
 ## Simple plugins
 
-Plugins that mostly handle or alter an event can usually be **fully ported** and released as an alpha.
+Plugins that mostly handle or alter an event can usually be **fully upgraded** and released as an alpha.
 
 ## Larger plugins
 
@@ -42,7 +42,7 @@ Plugins that add new features or new types of existing components should:
 2. Release that as an alpha, so others can test the upgrade in real projects and report issues with Craft, the adapter or the plugin.
 3. Migrate gradually, using the alpha period.
 
-A **very large plugin** (hundreds of classes) is better ported bottom-up by dependency than by the five stages in one pass. A layout that has worked:
+A **very large plugin** (hundreds of classes) is better upgraded bottom-up by dependency than by the five stages in one pass. A layout that has worked:
 
 1. A structural-only commit: move the old code to `src-yii2/` (same `craft\myplugin\` namespace, keep both roots in `autoload.psr-4`) and create the new `src/` tree. Nothing else changes, so the diff is reviewable. Use two `git mv` steps for a case-only rename on macOS.
 2. Fill `src/` in order of dependency, one commit per cluster: enums and table-name constants, interfaces, events, helpers, simple models, services, the plugin class, controllers and routes, records to Eloquent, and element types last.
@@ -60,9 +60,9 @@ if (false) {
 4. Legacy services delegate to the new ones inline (`app(New::class)->method()`), with a `@deprecated` docblock naming the replacement.
 5. Keep a work-in-progress changelog and add an entry per stage in the same commit as the move (see [assets/UPGRADE.template.md](../assets/UPGRADE.template.md)).
 
-While the plugin is mid-port, it needs a `craftcms/cms` constraint that resolves (`6.x-dev` until releases exist) and, if the legacy tree is shipped, the adapter in `require` (not `require-dev`), or downstream installs break.
+While the plugin is mid-upgrade, it needs a `craftcms/cms` constraint that resolves (`6.x-dev` until releases exist) and, if the legacy tree is shipped, the adapter in `require` (not `require-dev`), or downstream installs break.
 
-If the plugin has its own extension surface (events, service APIs), decide and tell users whether it will be fully ported during the alpha, and whether a compatibility layer will ship.
+If the plugin has its own extension surface (events, service APIs), decide and tell users whether it will be fully upgraded during the alpha, and whether a compatibility layer will ship.
 
 ## Is the plugin still needed?
 
@@ -89,7 +89,7 @@ Both listeners and bridges must check the type themselves: Laravel events have n
 
 ## Scope: removing features
 
-Dropping a feature during the port is a legitimate outcome (for example a rarely used subsystem). Record it in the upgrade notes, don't drop its database tables, and make the decision in Stage 0.
+Dropping a feature during the upgrade is a legitimate outcome (for example a rarely used subsystem). Record it in the upgrade notes, don't drop its database tables, and make the decision in Stage 0.
 
 ## Compatibility layers for your own legacy API
 

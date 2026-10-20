@@ -21,7 +21,7 @@ Route::post('events/track', TrackEvent::class);
 - Prefix routes with your plugin handle to avoid collisions.
 - Consider omitting front-end routes and letting developers mount your controllers where they want.
 - Names, `route:list -v` for middleware, `Route::view()` for template-only routes.
-- Unverified (not covered in the docs): how Craft 5 URL-rule registration (`EVENT_REGISTER_URL_RULES`, `EVENT_REGISTER_CP_URL_RULES`) maps over. The natural port is route files, but confirm against the `UrlManager` deprecation notes in source.
+- Unverified (not covered in the docs): how Craft 5 URL-rule registration (`EVENT_REGISTER_URL_RULES`, `EVENT_REGISTER_CP_URL_RULES`) maps over. The natural upgrade is route files, but confirm against the `UrlManager` deprecation notes in source.
 
 ## Controllers
 
@@ -56,7 +56,7 @@ Route::post('events/track', TrackEvent::class);
 - Flash messages: `CraftCms\Cms\Support\Flash`, or `RespondsWithFlash`. Categories `success`, `notice`, `error`.
 - Validation errors live in `errors` (a `ViewErrorBag`) in templates. Repopulate with `old()`. Use `back()->with(...)` with serializable data.
 
-## Porting a Yii controller action (verified on guest-entries)
+## Upgrading a Yii controller action (verified on guest-entries)
 
 | Craft 5 / Yii | Craft 6 |
 | --- | --- |
@@ -109,7 +109,7 @@ public function boot(\CraftCms\Cms\Route\Routes $routes): void
 
 `routes/actions.php` is registered under both prefixes, so exempt both, or the CP twin of the URL still returns 419. Exemptions are also the right tool for webhooks and off-site payment returns. `PreventRequestForgery::except()` and `RateLimiter::for()` can go in `register()` as well as `boot()`.
 
-Craft uses the same mechanism for `graphql/api`. (The upstream native guest-entries port instead marked its setting deprecated and left CSRF to the application.)
+Craft uses the same mechanism for `graphql/api`. (The upstream native guest-entries upgrade instead marked its setting deprecated and left CSRF to the application.)
 
 ## Failed form posts: what the template gets
 
@@ -122,7 +122,7 @@ For a non-Ajax post, `asModelFailure()` redirects back and flashes the data. The
 
 An Ajax request (`Accept: application/json`) gets a JSON response with HTTP `200` or `400` and the keys `message`, `modelName`, `modelClass`, `modelId` (success only) and `entry`.
 
-## API and JSON routes (verified porting craftcms/element-api)
+## API and JSON routes (verified on craftcms/element-api)
 
 - **Dynamic routes from config:** `routes/web.php` can loop over settings and register one route per entry. `app(Plugin::class)->getSettings()` already contains the values from `config/craft/<handle>.php` when routes load. Pass route parameters to user closures by name with `app()->call($closure, $routeParams)`: it also injects type-hinted services such as `Illuminate\Http\Request`.
 - **Yii URL rules to Laravel routes:** `news/<id:\d+>.json` becomes `news/{id}.json`. Inline regexes and the `{handle}`/`{slug}` tokens are gone, so a parameter matches anything. Restore the old constraint with `->whereNumber('id')` (or `->where()`), or the old 404 becomes an error: a non-numeric value reaching an `int` argument is a `TypeError` (500). `Route::match(['GET', 'HEAD', 'OPTIONS'], ...)` for read-only APIs.

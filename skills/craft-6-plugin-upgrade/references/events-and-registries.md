@@ -126,7 +126,7 @@ class GatewayTypes extends \CraftCms\Cms\Component\TypeRegistry
 
 Other core registries that plugins use: `CraftCms\Cms\Gql\GqlArguments::register('hasProduct', HasProduct::class)`, and (on newer 6.x builds) the control panel UI node and control type registries. Where the plugin kept a legacy `EVENT_REGISTER_*_TYPES` event, reconcile old handlers into the registry after every plugin has booted (`app()->booted(...)`).
 
-## Porting a plugin's own events (clean break, verified)
+## Upgrading a plugin's own events (clean break, verified)
 
 A Craft 5 plugin that triggers its own Yii events from a controller:
 

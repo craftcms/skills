@@ -4,7 +4,7 @@ Source: Craft 6.x extend docs, "Services", "Helpers", "Settings + Config" (initi
 
 Services are now plain autoloadable classes. No component tree, no `setComponents()`, no getters on the plugin.
 
-## Porting a service
+## Upgrading a service class
 
 Craft 5:
 
@@ -29,7 +29,7 @@ app(\MyOrg\Activity\Reporting\Manager::class)->generate(...);
 - Mark most services `#[Singleton]` so the container reuses the instance. A service that holds per-request state (the current cart, the current user's context, a per-request cache) should be `#[\Illuminate\Container\Attributes\Scoped]` instead, so long-running workers (Octane, queue workers) don't leak that state between requests.
 - Never `new` a service, especially a singleton. Resolve it via the container or injection.
 - Services need no base class. Extending `CraftCms\Cms\Component\Component` adds validation, macros, array access and constructor config if wanted.
-- Do a strict horizontal port first. Restructure afterwards if desired (for example split large services into invokable "action" classes that can be dispatched as jobs, as Craft did with garbage collection).
+- Do a strict horizontal upgrade first. Restructure afterwards if desired (for example split large services into invokable "action" classes that can be dispatched as jobs, as Craft did with garbage collection).
 
 ## Getting dependencies
 
@@ -63,13 +63,13 @@ Craft exposes its facades to Twig. See [templates-and-twig.md](templates-and-twi
 | Application config tree / component config arrays | `config(...)` read at runtime in the service, defaults from general config |
 | `Craft::$app->getView()->renderTemplate(..., View::TEMPLATE_MODE_SITE)` | `TemplateMode::with(TemplateMode::Site, fn () => ...)` or `template(..., TemplateMode::Site)` |
 | Yii behaviors | Macros. See [templates-and-twig.md](templates-and-twig.md) and [models-and-validation.md](models-and-validation.md) |
-| `Plugin::getInstance()->getSettings()` | Inject the settings class (bound in the container, see below), or `app(MyPlugin::class)->getSettings()`. Don't call `Plugin::getInstance()` in ported code |
+| `Plugin::getInstance()->getSettings()` | Inject the settings class (bound in the container, see below), or `app(MyPlugin::class)->getSettings()`. Don't call `Plugin::getInstance()` in upgraded code |
 
 ## Typical helper moves
 
 Most static helper classes moved to the `CraftCms\Cms\Support` namespace. Do not guess the new class. Check the `@deprecated` tag on the old helper, which points to the replacement. Common global helpers: `template()`, `pageTemplate()`, `renderString()`, `t()`, `cp_url()`, `site_url()`, `currentUser()`.
 
-## Common lookups when porting `Craft::$app` calls
+## Common lookups when replacing `Craft::$app` calls
 
 | Craft 5 | Craft 6 |
 | --- | --- |
@@ -86,7 +86,7 @@ Always check the installed source for the exact class and method before relying 
 
 ## Don't use static lookups: let the container hand things over
 
-`Plugin::getInstance()` and `Craft::$app` are the service-locator habit. In ported code, get the plugin, its settings and its services from the container:
+`Plugin::getInstance()` and `Craft::$app` are the service-locator habit. In upgraded code, get the plugin, its settings and its services from the container:
 
 ```php
 // Bind the settings once, in the plugin's boot():
@@ -107,7 +107,7 @@ public function __invoke(Request $request, Sections $sections, Elements $element
 - Plain data objects (such as a per-section settings object) can still be created with `new`. Services and the plugin must not be.
 - `scripts/scan-craft5.sh` flags remaining `::getInstance()` calls under "Static lookups".
 
-## Caching responses and data (verified porting craftcms/element-api)
+## Caching responses and data (verified on craftcms/element-api)
 
 | Craft 5 / Yii | Craft 6 |
 | --- | --- |
@@ -126,6 +126,6 @@ public function __invoke(Request $request, Sections $sections, Elements $element
 
 Core's `CraftCms\Cms\Gql\Gql::executeQuery()` is the model for caching a computed result with element-cache tags.
 
-**Audit every cache duration.** Yii's default cache duration was the `cacheDuration` general config setting. In Laravel, a `null` TTL means **forever**, and `0` means **don't cache**. A port that passes `null` through caches forever, and no response-body test will notice. Pass `Config::durationInSeconds($generalConfig->cacheDuration) ?: null` where the old code relied on the default, and keep Craft's meaning of `0` (until invalidated) as `null`.
+**Audit every cache duration.** Yii's default cache duration was the `cacheDuration` general config setting. In Laravel, a `null` TTL means **forever**, and `0` means **don't cache**. An upgrade that passes `null` through caches forever, and no response-body test will notice. Pass `Config::durationInSeconds($generalConfig->cacheDuration) ?: null` where the old code relied on the default, and keep Craft's meaning of `0` (until invalidated) as `null`.
 
-To check a port against the original, diff it against the Yii implementation while the adapter is still installed: call the new private method through `ReflectionMethod` in tinker and compare with `yii\helpers\Json::encode()` on strings like `a<b>&'"/é`.
+To check an upgrade against the original, diff it against the Yii implementation while the adapter is still installed: call the new private method through `ReflectionMethod` in tinker and compare with `yii\helpers\Json::encode()` on strings like `a<b>&'"/é`.

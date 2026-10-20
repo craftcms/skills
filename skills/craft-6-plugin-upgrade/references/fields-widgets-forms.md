@@ -26,7 +26,7 @@ Source: Craft 6.x extend docs, "Field Types", "Widgets", "Settings + Config". Th
 ## Utilities, element types, and others
 
 - Utilities: `protected array $utilities = [...]` or `UtilityTypes`.
-- Element types: `protected array $elementTypes = [...]` or `ElementTypes`. There is no official porting guide for elements. See [element-types.md](element-types.md) for the map, then read the 6.x source and the adapter's `@deprecated` tags, and tell the user what is unverified.
+- Element types: `protected array $elementTypes = [...]` or `ElementTypes`. There is no official upgrade guide for elements. See [element-types.md](element-types.md) for the map, then read the 6.x source and the adapter's `@deprecated` tags, and tell the user what is unverified.
 - Auth methods: `AuthMethods` registry (see [events-and-registries.md](events-and-registries.md)).
 - GraphQL, link types, image transformers, asset file kinds: registries (same file).
 

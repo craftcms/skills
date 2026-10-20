@@ -1,6 +1,6 @@
-# Setting up a host project and testing a port
+# Setting up a host project and testing an upgrade
 
-These recipes were used to port a real plugin (`craftcms/guest-entries`) against `craftcms/cms` 6.0.0-alpha.20. Adapt names and URLs. They assume DDEV, as the Craft 6 install docs do.
+These recipes were used to upgrade a real plugin (`craftcms/guest-entries`) against `craftcms/cms` 6.0.0-alpha.20. Adapt names and URLs. They assume DDEV, as the Craft 6 install docs do.
 
 ## 1. Create a clean Craft 6 host
 
@@ -93,7 +93,7 @@ Register throwaway listeners in the host's `app/Providers/AppServiceProvider.php
 - `composer why <package>` for a package that isn't installed prints its usage, not "nothing". Use `composer show <package>` and expect "not found".
 - Keep test scripts and fixtures out of the plugin repository. Put them in the host project.
 
-## 9. More traps (from the Element API port)
+## 9. More traps (from the Element API upgrade)
 
 - **Refresh the plugin cache after renaming the plugin class.** `craftcms/plugin-installer` caches each plugin's class in `vendor/craftcms/plugins.php`. After you rename the class or namespace, `composer dump-autoload` isn't enough: the plugin shows as disabled (`x` in `php artisan craft:plugin:list`) and its routes vanish. Run `ddev composer update vendor/my-plugin`.
 - **Test entries with real titles:** create the entry type with a field layout, or titles save as `null`:
@@ -107,16 +107,16 @@ $type = new EntryType(['name' => 'Article', 'handle' => 'article', 'hasTitleFiel
 $type->setFieldLayout($layout);
 ```
 
-- **Baseline first:** while the adapter-only Stage 1 works, save each endpoint's response body and key headers to files. After every later stage, diff against them. A byte-identical diff is the strongest evidence that a port preserved behavior. It cannot see behavior that isn't in the response (cache lifetimes, cookies, error paths), so test those directly.
+- **Baseline first:** while the adapter-only Stage 1 works, save each endpoint's response body and key headers to files. After every later stage, diff against them. A byte-identical diff is the strongest evidence that an upgrade preserved behavior. It cannot see behavior that isn't in the response (cache lifetimes, cookies, error paths), so test those directly.
 - **Run test commands from a script** with absolute tool paths (`/usr/bin/curl`) and `/bin/bash script.sh`: shell hooks (zoxide, mise) occasionally break `PATH` right after a `cd` into a new project.
 - **Cache and TTL checks:** read the cache from tinker (`DependencyCache::get($key)`), use a short TTL such as `PT2S` and check the entry is gone after a `sleep`, and save an element to prove invalidation.
 
-## 10. A native test suite (from a large port)
+## 10. A native test suite (from a large upgrade)
 
 For a plugin you will keep, move tests off the Yii/Codeception harness:
 
 - Dev stack: `orchestra/testbench`, `pestphp/pest` with `pest-plugin-arch` and `pest-plugin-laravel`, `larastan/larastan`, optionally `rector/rector`. Add `craftcms/plugin-installer` and `pestphp/pest-plugin` to `config.allow-plugins`, and map `Tests\` and a `Workbench\` namespace in `autoload-dev`.
-- Park the old tests in `tests-yii2/` as non-running reference, and port them to Pest in the same stage as the code they test.
+- Park the old tests in `tests-yii2/` as non-running reference, and upgrade them to Pest in the same stage as the code they test.
 - **Boot test:** assert that the plugin's registrations take effect (`expect(app(ElementTypes::class)->types()->contains(Thing::class))->toBeTrue()`, and that expected macros resolve).
 - **Architecture test as the exit gate:** it is stricter than the grep scan.
 
