@@ -1,0 +1,101 @@
+# Base Plugin Class
+
+Plugins now extend `CraftCms\Cms\Plugin\Plugin`, and are Laravel [service providers](https://laravel.com/framework/docs/13.x/providers).
+
+
+Many plugins will only need to update their [settings model](#settings) and rename the `init()` method to `boot()`.
+At this point—with the adapter installed—your plugin should be in a stable state from which you can gradually move [initialization logic](avenues.md#initialization) to the new architecture.
+
+> **Warning:**
+> The adapter only routes `actions/{handle}/…` URLs to plugins that extend the legacy `craft\base\Plugin` class.
+> Once your plugin extends `CraftCms\Cms\Plugin\Plugin`, any Yii controllers it ships return a 404 until you port them to Laravel controllers and [route](http.md#action-paths) them in `routes/actions.php`.
+> Switch the base class together with your controllers, and test your action URLs afterwards.
+> The settings page also changes: `settingsHtml()` is not used by the new base class, so implement `settingsForm()` (see [settings](config.md#settings-form)).
+
+
+You are not obligated to adopt `PascalCase` namespaces, but if you do (and your base class is named something other than `Plugin`, in your autoloading root), make the corresponding update to the `extra.class` property in `composer.json`:
+
+```json
+{
+  // ...
+  "extra": {
+    "handle": "_demo-plugin",
+    "name": "Demo Plugin",
+    "developer": "Pixel & Tonic",
+    "documentationUrl": "https://github.com/craftcms/demo-plugin",
+    "class": "CraftCms\\DemoPlugin\\Demo"
+  }
+}
+```
+
+In order to support the Craft plugin lifecycle (installation and uninstallation, as well as enabling and disabling), plugins live outside of Laravel’s [discovery](https://laravel.com/framework/docs/13.x/packages#package-discovery) system, so you do _not_ need to add the standard `extra.laravel.providers` entry to `composer.json`.
+
+## Settings
+
+The `createSettings()` method replaces `createSettingsModel()`, and must return a subclass of `CraftCms\Cms\Plugin\PluginSettings` (or `null`).
+Note that it is a **static** method:
+
+```php
+protected static function createSettings(): ?PluginSettings
+{
+    return new Settings();
+}
+```
+
+This base class retains much of the same [component](models.md#data-objects) functionality, and should be a drop-in replacement for `craft\base\Model`.
+
+> **Tip:**
+> Laravel tends to use *model* in the context of its Eloquent ORM.
+>
+> `PluginSettings` aren’t part of that system, so we’ve opted to move our own plugins’ settings classes to the same directory as the base plugin class.
+> This is not mandatory!
+
+
+Read more about this in the [configuration and settings](config.md) section.
+
+## Application Providers
+
+The new starter project comes with a single `AppServiceProvider` class, which is registered via `bootstrap/providers.php`.
+
+You can scaffold this yourself by adding an auto-loading root to `composer.json`…
+
+```json
+{
+    // ...
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    }
+}
+```
+
+…and creating the `app/Providers/` directory and a service provider class:
+
+```php
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void {}
+
+    public function boot(Settings $settings): void {}
+}
+```
+
+Make sure Laravel boots your provider by adding an entry to `bootstrap/providers.php`:
+
+```php
+use App\Providers\AppServiceProvider;
+
+return [
+    AppServiceProvider::class,
+];
+```
+
+`register()` and `boot()` will be called as the application boots.
+Bare service providers do not have the same [declarative registration](avenues.md#initialization) features that you’ll see throughout the documentation; instead, you will need to directly bind the appropriate [events and listeners](events.md) or use a corresponding [registry](registries.md).
