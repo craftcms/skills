@@ -1,30 +1,28 @@
 # After the upgrade: configuration, verification, removing the adapter
 
-The official version of most of this is [docs/compatibility.md](docs/compatibility.md). This page is the working checklist. Items marked **adapter only** keep working while `craftcms/yii2-adapter` is installed, and must be changed before it is removed (Stage 4). The rest need attention in Stage 3.
+The official version of most of this is the [compatibility docs](https://craftcms.com/docs/6.x/compatibility.html). This page is the working checklist. Items marked **adapter only** keep working while `craftcms/yii2-adapter` is installed, and must be changed before it is removed (Stage 4). The rest need attention in Stage 3.
 
 ## Configuration
 
 Craft's own config files now live in `config/craft/`. Laravel's live in `config/` and read `.env`.
 
 - **`config/craft/general.php`**
-  - Paths: `dirname(__DIR__)` now means `config/`. Use Laravel path helpers: `base_path()`, `public_path()`, `storage_path()`. Set `'@webroot' => public_path()`.
-  - Remove `omitScriptNameInUrls`, `pathParam` and `enableTwigSandbox` (no longer used; the sandbox is always on).
+  - Paths and removed settings: craft6-revamp rewrites `dirname(__DIR__)` and `CRAFT_BASE_PATH` paths to `base_path()`/`public_path()`, and removes `omitScriptNameInUrls`, `pathParam` and `enableTwigSandbox`. Fix by hand anything it lists in its Next steps instead.
   - Moved to Laravel config: `timezone` (`config/app.php`), `defaultCookieDomain` (`config/session.php` `domain`), `phpSessionName` (`config/session.php` `cookie`), `blowfishHashCost` (`config/hashing.php`), `elevatedSessionDuration` (`config/auth.php` `password_timeout`), `testToEmailAddress` (`Mail::alwaysTo()` in a service provider, or the `log` mailer). `systemMessageTemplate` moved to Settings > Email.
   - `loginPath` now defaults to `false`. Set it if the site has a front-end login form.
   - Classes: the fluent `craft\config\GeneralConfig` keeps working through the adapter. The native class is `CraftCms\Cms\Config\GeneralConfig` (the 6.x starter uses it). Switching is part of Stage 4: change the `use` line, drop `use craft\helpers\App` if unused (use `env()`), and check each setting still exists on the native class.
   - Multi-environment arrays (`'*' => [...]`) and app-type files (`general.web.php`): **adapter only**. Flatten them using environment variables.
 - **`config/craft/db.php`**: not read. Move settings to `.env` (`DB_*`) or `config/database.php`.
 - **`config/craft/app.php`** (Yii components, modules, bootstrap): **adapter only**. Cache, session, queue, mutex and Redis config move to `config/cache.php`, `config/session.php`, `config/queue.php` and `config/database.php`. Modules become service providers.
-- **`config/craft/routes.php`**: **adapter only**. Translate to `routes/web.php` (examples in [docs/compatibility.md](docs/compatibility.md#custom-rules)), and register the file in `bootstrap/app.php` `withRouting(web: ...)` as the 6.x starter does.
+- **`config/craft/routes.php`**: **adapter only**. Translate to `routes/web.php` (examples in the [compatibility docs](https://craftcms.com/docs/6.x/compatibility.html#custom-rules)), and register the file in `bootstrap/app.php` `withRouting(web: ...)` as the 6.x starter does.
 - **`config/craft/htmlpurifier/`**: replaced by Symfony HtmlSanitizer. Delete an unmodified `Default.json`. Translate custom configs to `config/craft/sanitizers/*.php` (check the directory name against the installed source: the docs spell it two ways).
 - **Constants** set in the old `bootstrap.php` or `index.php` (`CRAFT_ENVIRONMENT`, `CRAFT_STORAGE_PATH`, ...): mostly gone. Use Laravel's `.env` and path helpers.
 
 ## Environment variables
 
-- Check `.env`, `.ddev/.env*`, `.env.example*`, CI and hosting dashboards for the old names: `CRAFT_DB_*` → `DB_*`, `CRAFT_DEV_MODE` → `APP_DEBUG`, `CRAFT_SECURITY_KEY` removed, `APP_KEY` added (`php artisan key:generate`).
-- `CRAFT_ENVIRONMENT` → Laravel uses `APP_ENV`. Set `APP_ENV` (e.g. `local`, `production`) and `APP_URL` in Stage 2; without `APP_ENV` Laravel assumes `production`.
-- `.env.example*`: the tool doesn't touch them, and the stock `.env.example.dev` has no database settings. Rewrite them with the new names: `APP_ENV`, `APP_URL`, `APP_DEBUG`, `APP_KEY=`, `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SCHEMA`, `DB_TABLE_PREFIX`, `CACHE_STORE`, `SESSION_DRIVER`, `MAIL_MAILER`.
-- `.gitignore`: add `/public/vendor/craft`, `/public/storage`, `/storage/*.key`, `*.log`.
+- The tool renames them in `.env`, `.ddev/.env*` and `.env.example*`, and flags them in config, `.github/`, Docker and deploy files. Check hosting dashboards and secrets yourself. The old names: `CRAFT_DB_*` → `DB_*`, `CRAFT_DEV_MODE` → `APP_DEBUG`, `CRAFT_SECURITY_KEY` removed, `APP_KEY` added (`php artisan key:generate`).
+- The tool sets `APP_ENV` (from `CRAFT_ENVIRONMENT`, `dev` becomes `local`) and `APP_URL` (from `PRIMARY_SITE_URL`, only in files that define it) in `.env` and `.env.example*`. The stock `.env.example*` files have no `PRIMARY_SITE_URL`, so add `APP_URL` to them by hand. Without `APP_ENV`, Laravel assumes `production`. Check the values per environment, and add settings the examples lack (the stock `.env.example.dev` has no database settings) and `MAIL_MAILER`.
+- `.gitignore`: the tool adds `/public/vendor/craft`, `/public/storage` and `/storage/*.key`; add `*.log` if it isn't covered.
 - `DB_CONNECTION` must be `mysql` or `pgsql`. Craft 5 used `mysql`/`pgsql` too, so the renamed value usually works.
 - Keep other `CRAFT_*` variables used for general config overrides (`CRAFT_ALLOW_ADMIN_CHANGES`, ...); check each still applies against `CraftCms\Cms\Config\GeneralConfig`.
 
@@ -34,22 +32,24 @@ Configure a mailer in `config/mail.php` (`MAIL_MAILER`, `MAIL_HOST`, ... in `.en
 
 ## Filesystems and assets
 
-Craft filesystems are gone. Each becomes a Laravel disk in `config/filesystems.php`, keyed by the filesystem's **handle**. The tool prints a suggestion for each. Local filesystems map to the `local` driver with `root` and `url`. The suggestions can keep Craft aliases and `$ENV` references, which Laravel config doesn't resolve: use `public_path('uploads/images')`, `env('S3_BUCKET')` and so on. Add the disks before `craft:up`. Then check that asset URLs and image transforms still resolve, including on every site.
+Craft filesystems are gone. Each becomes a Laravel disk in `config/filesystems.php`, keyed by the filesystem's **handle**. The tool prints a suggestion for each. Local filesystems map to the `local` driver with `root` and `url`. The suggestions use `public_path()`, `storage_path()` and `env()`; check the paths and that each `env()` variable is set. Add the disks before `craft:up`. Then check that asset URLs and image transforms still resolve, including on every site.
 
 ## Templates
 
 Templates live in `resources/views/`. The adapter keeps most Twig working. Before removing it:
 
-- `craft.app.*` → facades (`Request.get()`, `Sites`, `Entries`, ...). See the table in [docs/compatibility.md](docs/compatibility.md#services).
+- `craft.app.*` → facades (`Request.get()`, `Sites`, `Entries`, ...). See the table in the [compatibility docs](https://craftcms.com/docs/6.x/compatibility.html#services).
 - `view.*` (`registerJs`, `registerCssFile`, `getAssetManager`, ...) → `HtmlStack`, `include()`, `renderObjectTemplate()`.
 - Filters: `filterByValue` → `where`, `firstWhere` with closures only, `index` → `collect(x).keyBy()`, `purify` → `sanitize`, `ucfirst` → `capitalize`.
 - Front-end forms: errors come from the global `errors` (`errors.has('field')`, `errors.get('field')`), submitted values from `old('field')`.
-- `craft.categories`, `craft.tags`, `craft.globalSets` and global set variables: the content was entrified. Query entries, or singles via the `Sections` facade.
+- `craft.categories`, `craft.tags`, `craft.globalSets` and global set variables: if the `entrify/*` commands ran, the content is now entries: query entries, or singles via the `Sections` facade. If they didn't, these stay legacy elements that only work with the adapter (**adapter only**).
 - `where()`, `andWhere()`, `orWhere()` with Yii-style array conditions: Laravel query builder syntax.
+- SQL expressions as strings in `orderBy()`, `select()` or `groupBy()`, such as `orderBy('FIELD(id, 3, 1)')` or `select('count(*) as total')`: Craft 6 throws an error for these. Wrap them in `expression('…')` in Twig (`DB::raw()` in PHP). `orderBy('random()')` and `orderBy('rand()')` still work.
+- `asset.setTransform({...})` followed by `asset.url`, `asset.width` or `asset.getImg()`: use the result of `asset.transform({...})` instead (`.url`, `.width`, `.height`, `.mimeType`), for example `{% set image = asset.transform({ width: 650 }) %}` and then `image.url`. Passing a transform to `asset.url()` is deprecated too.
 
 ## Modules
 
-A Craft 5 module keeps working through the adapter. To modernize it, turn it into a Laravel service provider in `app/` (registered in `bootstrap/providers.php`). The `craft-6-plugin-upgrade` skill (https://github.com/craftcms/skills/tree/main/skills/craft-6-plugin-upgrade) covers the code changes: events, services, controllers, console commands, Twig extensions and templates.
+A Craft 5 module is loaded through the adapter, so code using `Craft::$app`, Yii events and controllers usually keeps working; check each feature anyway (Stage 3), since some Craft 5 APIs were removed rather than proxied. To modernize it, turn it into a Laravel service provider in `app/` (registered in `bootstrap/providers.php`). The `craft-6-plugin-upgrade` skill (https://github.com/craftcms/skills/tree/main/skills/craft-6-plugin-upgrade) covers the code changes: events, services, controllers, console commands, Twig extensions and templates.
 
 ## Deployment
 
@@ -80,4 +80,4 @@ Then create and save an entry, and request its URL.
 
 ## Removing the adapter
 
-See [docs/compatibility.md](docs/compatibility.md#ejecting-the-adapter). In short: no plugin requires it (`composer why craftcms/yii2-adapter`), every **adapter only** item above is done, no project-owned deprecation warnings come back while the site is exercised, then `composer remove craftcms/yii2-adapter` and verify again. Expect errors from anything that still uses `craft\...` or Yii classes, including `config/craft/general.php` if it still uses `craft\config\GeneralConfig` or `craft\helpers\App`.
+See the [compatibility docs](https://craftcms.com/docs/6.x/compatibility.html#ejecting-the-adapter). In short: no plugin requires it (`composer why craftcms/yii2-adapter`), every **adapter only** item above is done, no project-owned deprecation warnings come back while the site is exercised, then `composer remove craftcms/yii2-adapter` and verify again. Expect errors from anything that still uses `craft\...` or Yii classes, including `config/craft/general.php` if it still uses `craft\config\GeneralConfig` or `craft\helpers\App`.
