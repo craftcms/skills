@@ -104,3 +104,7 @@ Report what was built, how each feature was verified, and anything unverified.
 - A route in `routes/web.php` or `routes/actions.php` is public unless you add middleware. Add `auth` and `can:` for anything privileged.
 - When something fails, read `workbench/storage/logs/laravel.log` before changing code.
 - Run Artisan commands as `vendor/bin/testbench <command>` from the plugin root; a plugin has no `artisan`.
+
+## Improving this skill
+
+If something in this skill was wrong, missing or misleading (a class name that didn't exist, a step that failed, a source lookup the skill should have saved you), tell the developer at the end of your report. Offer to draft an issue for https://github.com/craftcms/skills/issues with the Craft version (`composer show craftcms/cms`), the file and section of the skill, what you expected, and what happened. Only open it if the developer agrees, and leave out private project details. Report bugs in Craft itself to https://github.com/craftcms/cms/issues instead.
