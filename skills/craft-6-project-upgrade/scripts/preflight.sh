@@ -200,13 +200,6 @@ if [ -f "$cfg/routes.php" ]; then
     warn "config/routes.php defines routes: only the adapter reads it; translate to routes/web.php before ejecting"
   fi
 fi
-if [ -f "$cfg/twig-sandbox.php" ]; then
-  if php -r '$r = include $argv[1]; exit(is_array($r) && array_filter($r) === [] ? 0 : 1);' "$cfg/twig-sandbox.php" 2>/dev/null; then
-    warn "config/twig-sandbox.php is the stock file (empty lists): on Craft 6 builds before cms 7c6ece5 (incl. 6.0.0-alpha.20) it REPLACES the default allow-lists and breaks system email; delete it before composer update"
-  else
-    warn "config/twig-sandbox.php is customized: on Craft 6 builds before cms 7c6ece5 each list replaces the defaults; rebuild it from vendor/craftcms/cms/config/twig-sandbox.php"
-  fi
-fi
 if [ -d "$cfg/htmlpurifier" ]; then
   extra=$(find "$cfg/htmlpurifier" -type f ! -name Default.json | sed "s|^$root/||")
   [ -n "$extra" ] && warn "custom HTMLPurifier configs (replaced by Symfony HtmlSanitizer): $extra"
@@ -237,13 +230,6 @@ else
   info "no config/project directory"
 fi
 
-section "App migrations"
-if [ -d "$root/database/migrations" ] && ls "$root/database/migrations" | grep -q jobs_table; then
-  ok "database/migrations has a jobs table migration"
-else
-  info "no database/migrations jobs table: craft:up creates Laravel's queue tables after 6.0.0-alpha.20; on alpha.20 and earlier, add the 6.x starter's migration in Stage 2"
-fi
-
 section "Modules and custom PHP"
 for d in modules src app; do
   [ -d "$root/$d" ] && info "$d/ contains $(find "$root/$d" -name '*.php' | wc -l | tr -d ' ') PHP file(s): a module; it keeps working through the adapter (see craft-6-plugin-upgrade skill to modernize)"
@@ -254,7 +240,6 @@ section "Templates"
 tpl="$root/templates"
 if [ -d "$tpl" ]; then
   info "templates/ has $(find "$tpl" -type f | wc -l | tr -d ' ') file(s) (moves to resources/views/)"
-  grep -q "assets/installer/dist" "$tpl/index.twig" 2>/dev/null && warn "templates/index.twig is the stock Craft 5 welcome page: returns 500 on 6.0.0-alpha.20 and earlier, and uses view.*; replace it with the 6.x starter's"
   grep_hits "craft.app (needs facades before ejecting)" 'craft\.app\b' "$tpl"
   grep_hits "deprecated filters (filterByValue, firstWhere, index, purify, ucfirst)" '\|\s*(filterByValue|firstWhere|index|purify|ucfirst)\b' "$tpl"
   grep_hits "view.* (Yii view object: use HtmlStack, include() or renderObjectTemplate())" '\bview\.[a-zA-Z]+|\{%\s*(js|css|script|html)\b' "$tpl"

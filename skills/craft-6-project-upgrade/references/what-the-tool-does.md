@@ -12,7 +12,7 @@
 
 | Step | What it does | By hand |
 | --- | --- | --- |
-| Update composer.json | `craftcms/cms` → `^6.0.0-alpha.1`; adds `craftcms/yii2-adapter: *`; `craftcms/generator` → `3.x-dev` (still requires Craft 5 as of this writing: remove it instead); removes `vlucas/phpdotenv` and `config.platform.php`; adds `post-autoload-dump` scripts `Illuminate\Foundation\ComposerScripts::postAutoloadDump`, `@php artisan package:discover --ansi`, `@php artisan craft:setup:publish --ansi` | Same edits |
+| Update composer.json | `craftcms/cms` → `^6.0.0-alpha.1`; adds `craftcms/yii2-adapter: *`; `craftcms/generator` → `3.x-dev` (check it supports Craft 6); removes `vlucas/phpdotenv` and `config.platform.php`; adds `post-autoload-dump` scripts `Illuminate\Foundation\ComposerScripts::postAutoloadDump`, `@php artisan package:discover --ansi`, `@php artisan craft:setup:publish --ansi` | Same edits |
 | Update DDEV | `type: laravel`, `php_version: "8.5"`, `docroot: public` (only when renaming) | Same edits, then `ddev restart` |
 | Environment variables | In `.env`, `.ddev/.env`, `.ddev/.env.web`: `CRAFT_DB_DRIVER`→`DB_CONNECTION`, `CRAFT_DB_SERVER`→`DB_HOST`, `CRAFT_DB_PORT`→`DB_PORT`, `CRAFT_DB_USER`→`DB_USERNAME`, `CRAFT_DB_PASSWORD`→`DB_PASSWORD`, `CRAFT_DB_DATABASE`→`DB_DATABASE`, `CRAFT_DB_SCHEMA`→`DB_SCHEMA`, `CRAFT_DB_TABLE_PREFIX`→`DB_TABLE_PREFIX`, `CRAFT_DEV_MODE`→`APP_DEBUG`; removes `CRAFT_SECURITY_KEY`. In `.env` only, adds `CACHE_STORE=file`, `SESSION_DRIVER=file`, `APP_KEY=` | Same; other `CRAFT_*` variables (`CRAFT_ENVIRONMENT`, `CRAFT_APP_ID`, ...) are left alone |
 | `artisan` | Creates Laravel's `artisan` (mode 0755) unless one exists | Copy from the 6.x starter |
@@ -29,4 +29,4 @@
 
 ## Next steps it prints
 
-Project-specific, so save them. They can include: updating `@web`/`@webroot` aliases (only when it renamed the web root), removing `omitScriptNameInUrls` and `pathParam`, adding `loginPath` if there's a front-end login form, `ddev restart`, a Laravel disk config for each Craft filesystem, then `composer update`, `artisan craft:setup:publish` and `artisan key:generate`. It does not mention `APP_ENV`/`APP_URL`, the app's queue table migration, the stock `twig-sandbox.php`, `enableTwigSandbox()` or the stock welcome template: see [known-issues.md](known-issues.md).
+Project-specific, so save them. They can include: updating `@web`/`@webroot` aliases (only when it renamed the web root), removing `omitScriptNameInUrls` and `pathParam`, adding `loginPath` if there's a front-end login form, `ddev restart`, a Laravel disk config for each Craft filesystem, then `composer update`, `artisan craft:setup:publish` and `artisan key:generate`. It does not mention `APP_ENV`/`APP_URL`, `enableTwigSandbox()`, `.gitignore` or the `.env.example*` files; Stage 2 and [after-upgrade.md](after-upgrade.md) cover them.
