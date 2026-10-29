@@ -65,7 +65,7 @@ Agree an **end state** in Stage 0:
 
 **Goal:** Craft 6 is installed, the database is migrated, and the app boots over HTTP and CLI.
 
-Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts boot the app, and `craft:setup:publish` copies Craft's default config files into `config/craft/` only where none exist.
+Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts boot the app, and `craft:setup:publish` copies Craft's default config files into `config/craft/` only where none exist, and recreates the `craft` executable the tool deleted.
 
 1. `composer.json`: apply the Stage 0 package decisions, and remove `yiisoft/yii2-shell`. The tool sets `craftcms/cms` to `^6.0.0-alpha.1`. If the newest release is 6.0.0-alpha.20 or older, require `6.x-dev` for both `craftcms/cms` and `craftcms/yii2-adapter` instead (Craft 5's `minimum-stability` is already `dev`). Check that every remaining package that depends on `craftcms/cms`, including `craftcms/generator`, has a version that supports Craft 6; remove any that doesn't. **Keep `yiisoft/yii2-composer` in `config.allow-plugins`** while the adapter is installed: it pulls in Yii, and Composer refuses to run with the plugin blocked. With DDEV, `ddev restart` first so Composer runs on PHP 8.5.
 2. `config/craft/general.php`:
@@ -78,7 +78,7 @@ Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts b
 7. If the site uses project config: `php artisan craft:project-config:apply` should succeed with no changes.
 8. Smoke test: serve the site ([references/environments.md](references/environments.md#running-a-local-server)); the home page and `/admin/login` (or the custom `cpTrigger`) return 200.
 
-**Exit:** `composer update` succeeded, `craft:up` and `migrate:status` report nothing pending, `php artisan list` lists the `craft:*` commands, `php craft` works, and the home page and login page return 200.
+**Exit:** `composer update` succeeded, `craft:up` reports nothing to run (Craft's migrations aren't in the app's `database/migrations/`, so `migrate:status` may say "No migrations found"; that's normal), `php artisan list` lists the `craft:*` commands, `php craft` works, and the home page and login page return 200.
 **Checkpoint:** report what ran, any errors and how they were fixed. Commit ("Install Craft 6").
 
 ## Stage 3: Fix the configuration and verify the site
@@ -108,7 +108,7 @@ Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts b
 1. Check that nothing else requires the adapter: `composer why craftcms/yii2-adapter` should list only the project. If a plugin requires it, stop: end state B isn't possible until that plugin drops it. Say so.
 2. Modernize what only the adapter supports: `config/craft/general.php` to the native `CraftCms\Cms\Config\GeneralConfig` (and drop `craft\helpers\App`), multi-environment and app-type config, `config/craft/app.php` (delete the stock one), `config/craft/routes.php` (to `routes/web.php`), HTMLPurifier configs (delete an unmodified `Default.json`, translate custom ones), and templates that use `craft.app`, `view.*`, Yii flashes and the deprecated filters. Modules move into `app/` as Laravel service providers (the `craft-6-plugin-upgrade` skill covers the code).
 3. Clear the deprecation warnings table, exercise the site again (Stage 3, step 3), and list what comes back, with traces. Classify each warning:
-   - **project-owned**: the trace reaches the project's config, templates, modules or a plugin. Fix it.
+   - **project-owned**: the trace reaches the project's config, templates, modules or a plugin, **or the message names a project file or setting** (for example a `config/craft/htmlpurifier/*.json` file or a general config setting), even when every frame is in vendor code. Fix it.
    - **not the project's**: no frame is in project or plugin code, only the adapter, Craft core, Laravel and entry points (`public/index.php`, `artisan`). The project can't fix these. Treat them as a Craft bug (see Ground rules), and don't let them block removing the adapter.
    Continue only when no project-owned warnings remain.
 4. Back up the database and commit. Ask the developer to confirm, then `composer remove craftcms/yii2-adapter`. Afterwards, remove `yiisoft/yii2-composer` from `config.allow-plugins`. Confirm `composer show craftcms/yii2-adapter` and `composer show yiisoft/yii2` both report the package isn't installed. If the app no longer boots, fix the project code it points at, or `git checkout` and `composer install` to go back.

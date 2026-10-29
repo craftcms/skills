@@ -59,7 +59,7 @@ Paths changed (`web/` → `public/`, `config/` → `config/craft/`, `storage/` g
 
 Collect evidence, not impressions. Serve the site as described in [environments.md](environments.md#running-a-local-server), with `APP_URL` and the site's base URL (often `PRIMARY_SITE_URL`) matching.
 
-- **CLI:** `php artisan about`, `php artisan list | grep craft:`, `php artisan craft:up` (nothing to run), `php artisan migrate:status` (all ran).
+- **CLI:** `php artisan about`, `php artisan list | grep craft:`, `php artisan craft:up` (nothing to run). `php artisan migrate:status` only lists the app's own `database/migrations/`; "No migrations found" is normal when the project has none.
 - **Front end:** `curl -s -o /dev/null -w '%{http_code} %{url_effective}\n' -L <url>` for the home page and sample entries. Check the HTML has the expected content, not an error page.
 - **Control panel:** `/admin/login` (or the `cpTrigger`) returns 200. Sign in with a real browser (for example `agent-browser`) and wait until the URL leaves the login page before navigating anywhere: navigating while the login request is in flight cancels it. With agent-browser, `wait --fn 'location.pathname !== "/admin/login"'` works; `wait --url` with a prefix can return too early. Then open the dashboard, an entry and Settings and check each final URL. A 200 on `/admin/login` after a redirect is a failure. Check the browser console after each save, not only on page load. Use a fresh browser session for the final JavaScript error check; old errors persist in a session.
 - **Saving:** edit an entry in the control panel, save, and read the value back from the database or the front end. Don't rely on the "Entry saved" toast alone.
