@@ -6,6 +6,7 @@
 
 | Skill | Description |
 | --- | --- |
+| [`craft-6-plugin-development`](skills/craft-6-plugin-development/SKILL.md) | Builds a new Craft CMS 6 (Laravel) plugin step by step, with an Orchestra Testbench workbench inside the plugin repository for manual checks and Pest tests. Covers Craft-specific APIs: the plugin class, settings, the control panel `Ui` builder and Vue/Inertia pages, permissions, migrations, events, field types, widgets, Twig and front-end output. |
 | [`craft-6-plugin-upgrade`](skills/craft-6-plugin-upgrade/SKILL.md) | Walks a developer and their agent through upgrading a Craft 5 (Yii 2) plugin or module to Craft 6 (Laravel) in stages, from running on 6.x with the Yii 2 adapter to native Laravel code. Craft 6 is in alpha, so the bundled docs snapshot may lag behind. |
 
 ## Structure
