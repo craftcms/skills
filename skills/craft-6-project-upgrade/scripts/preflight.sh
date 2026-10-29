@@ -103,13 +103,18 @@ php_json "$root/composer.json" '
   case "$name" in
     craftcms/cms) info "$s $name $c (tool sets ^6.0.0-alpha.1)" ;;
     vlucas/phpdotenv) info "$s $name $c (tool removes it; Laravel loads .env itself)" ;;
-    craftcms/generator) info "$s $name $c (tool sets 3.x-dev)" ;;
+    craftcms/generator) warn "$s $name $c (tool sets 3.x-dev, which still requires Craft 5 and blocks composer update: remove it)" ;;
     yiisoft/yii2-shell) warn "$s $name $c (Yii shell is gone in Craft 6; remove it and use laravel/tinker)" ;;
     *) info "$s $name $c" ;;
   esac
 done
 if [ -f "$root/composer.lock" ]; then
   plugins=$(php_json "$root/composer.lock" 'foreach (array_merge($j["packages"] ?? [], $j["packages-dev"] ?? []) as $p) { if (($p["type"] ?? "") === "craft-plugin") { echo $p["name"], " ", $p["version"], "\n"; } }')
+  c5deps=$(php_json "$root/composer.lock" 'foreach (array_merge($j["packages"] ?? [], $j["packages-dev"] ?? []) as $p) { $c = $p["require"]["craftcms/cms"] ?? null; if ($c !== null && ($p["type"] ?? "") !== "craft-plugin" && $p["name"] !== "craftcms/generator") { echo $p["name"], " ", $p["version"], " (requires craftcms/cms ", $c, ")\n"; } }')
+  if [ -n "$c5deps" ]; then
+    warn "non-plugin packages that require craftcms/cms (each needs a Craft 6 release, or removal, before composer update):"
+    printf '%s\n' "$c5deps" | sed 's/^/          /'
+  fi
   if [ -n "$plugins" ]; then
     warn "Craft plugins installed (check each for a 6.x release; set CRAFT_DISABLED_PLUGINS=\"*\" or uninstall any that are not ready):"
     printf '%s\n' "$plugins" | sed 's/^/          /'
@@ -159,6 +164,7 @@ for f in .env .ddev/.env .ddev/.env.web; do
   vars=$(grep -oE '^(export +)?CRAFT_[A-Z0-9_]+' "$root/$f" | sed 's/^export *//' | sort -u | tr '\n' ' ')
   [ -n "$vars" ] && info "$f: $vars"
 done
+info "the tool does NOT set APP_ENV or APP_URL: set them in .env after running it, or Laravel assumes production"
 info "the tool renames CRAFT_DB_* and CRAFT_DEV_MODE, removes CRAFT_SECURITY_KEY, and adds APP_KEY, CACHE_STORE=file, SESSION_DRIVER=file"
 info "it does NOT rename CRAFT_DB_TABLE (the docs' name), only CRAFT_DB_TABLE_PREFIX; check table prefixes by hand"
 for f in .env.example .env.example.dev .env.example.staging .env.example.production; do
@@ -180,6 +186,7 @@ if [ -f "$cfg/app.php" ]; then
   grep -nE "'components'|'modules'|'bootstrap'" "$cfg/app.php" | sed 's/^/  WARN  config\/app.php (Yii app config; only the adapter reads it): /'
 fi
 if [ -f "$cfg/general.php" ]; then
+  grep -qE "\benableTwigSandbox\b" "$cfg/general.php" && warn "general.php calls enableTwigSandbox (deprecated in Craft 6, logs on every boot): remove it before composer update"
   for s in timezone defaultCookieDomain blowfishHashCost phpSessionName systemMessageTemplate elevatedSessionDuration omitScriptNameInUrls pathParam testToEmailAddress; do
     grep -qE "\b$s\b" "$cfg/general.php" && warn "general.php uses $s (removed or relocated in Craft 6, see compatibility.md > General Config)"
   done
@@ -191,6 +198,13 @@ if [ -f "$cfg/routes.php" ]; then
     ok "config/routes.php is empty"
   else
     warn "config/routes.php defines routes: only the adapter reads it; translate to routes/web.php before ejecting"
+  fi
+fi
+if [ -f "$cfg/twig-sandbox.php" ]; then
+  if php -r '$r = include $argv[1]; exit(is_array($r) && array_filter($r) === [] ? 0 : 1);' "$cfg/twig-sandbox.php" 2>/dev/null; then
+    warn "config/twig-sandbox.php is the stock file (empty lists): in Craft 6 it REPLACES the default allow-lists and breaks system email; delete it before composer update"
+  else
+    warn "config/twig-sandbox.php is customized: in Craft 6 each list replaces the defaults; rebuild it from vendor/craftcms/cms/config/twig-sandbox.php"
   fi
 fi
 if [ -d "$cfg/htmlpurifier" ]; then
@@ -223,6 +237,13 @@ else
   info "no config/project directory"
 fi
 
+section "App migrations"
+if [ -d "$root/database/migrations" ] && ls "$root/database/migrations" | grep -q jobs_table; then
+  ok "database/migrations has a jobs table migration"
+else
+  warn "no database/migrations jobs table: Craft 6 needs Laravel's jobs/job_batches/failed_jobs tables (copy the 6.x starter's migration in Stage 2), or the control panel returns 500"
+fi
+
 section "Modules and custom PHP"
 for d in modules src app; do
   [ -d "$root/$d" ] && info "$d/ contains $(find "$root/$d" -name '*.php' | wc -l | tr -d ' ') PHP file(s): a module; it keeps working through the adapter (see craft-6-plugin-upgrade skill to modernize)"
@@ -233,6 +254,7 @@ section "Templates"
 tpl="$root/templates"
 if [ -d "$tpl" ]; then
   info "templates/ has $(find "$tpl" -type f | wc -l | tr -d ' ') file(s) (moves to resources/views/)"
+  grep -q "assets/installer/dist" "$tpl/index.twig" 2>/dev/null && warn "templates/index.twig is the stock Craft 5 welcome page: it returns 500 on Craft 6, replace it with the 6.x starter's"
   grep_hits "craft.app (needs facades before ejecting)" 'craft\.app\b' "$tpl"
   grep_hits "deprecated filters (filterByValue, firstWhere, index, purify, ucfirst)" '\|\s*(filterByValue|firstWhere|index|purify|ucfirst)\b' "$tpl"
   grep_hits "view.* (Yii view object: use HtmlStack, include() or renderObjectTemplate())" '\bview\.[a-zA-Z]+|\{%\s*(js|css|script|html)\b' "$tpl"

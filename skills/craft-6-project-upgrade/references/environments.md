@@ -18,8 +18,13 @@ The recommended setup. Run PHP tools through DDEV so they use the container's PH
 
 - Craft 6 needs PHP 8.5 with the extensions in [docs/requirements.md](docs/requirements.md). Check with `php -v` and `php -m`. If several PHP versions are installed, call the 8.5 binary explicitly (`php8.5 artisan ...`, `php8.5 $(which composer) update`).
 - The database server must be running, and `.env` `DB_*` values must reach it (`DB_HOST=127.0.0.1` rather than `localhost` avoids socket surprises with MySQL).
-- Local server: `php artisan serve` (Laravel's development server), or `php -S 127.0.0.1:8000 -t public public/index.php`. Set `APP_URL` and the site's base URL (often `PRIMARY_SITE_URL` in `.env`) to the URL you serve on, or links and control panel assets will point elsewhere.
 
 ## Docker or another container setup
 
 Treat it like DDEV: run Composer and Artisan inside the container, and switch the image to PHP 8.5 and the docroot to `public/` before `composer update`.
+
+## Running a local server
+
+Without DDEV, use Laravel's development server on Craft 6: `php artisan serve --host=127.0.0.1 --port=8000`. On Craft 5 (the baseline), use `php -S 127.0.0.1:8000 -t web` **without** a router script: passing `web/index.php` (or `public/index.php`) as the router sends CSS and JS through Craft, which breaks control panel scripts and logins.
+
+Set `APP_URL` and the site's base URL (often `PRIMARY_SITE_URL` in `.env`) to the exact URL, port included, that you serve on, or links, redirects and control panel assets will point elsewhere. For a long-running server, use the environment's service manager rather than a backgrounded shell process.
