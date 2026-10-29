@@ -103,7 +103,7 @@ php_json "$root/composer.json" '
   case "$name" in
     craftcms/cms) info "$s $name $c (tool sets ^6.0.0-alpha.1)" ;;
     vlucas/phpdotenv) info "$s $name $c (tool removes it; Laravel loads .env itself)" ;;
-    craftcms/generator) warn "$s $name $c (tool sets 3.x-dev, which still requires Craft 5 and blocks composer update: remove it)" ;;
+    craftcms/generator) info "$s $name $c (tool sets 3.x-dev; check it requires craftcms/cms ^6 before composer update, or remove it)" ;;
     yiisoft/yii2-shell) warn "$s $name $c (Yii shell is gone in Craft 6; remove it and use laravel/tinker)" ;;
     *) info "$s $name $c" ;;
   esac
@@ -241,7 +241,7 @@ section "App migrations"
 if [ -d "$root/database/migrations" ] && ls "$root/database/migrations" | grep -q jobs_table; then
   ok "database/migrations has a jobs table migration"
 else
-  warn "no database/migrations jobs table: Craft 6 needs Laravel's jobs/job_batches/failed_jobs tables (copy the 6.x starter's migration in Stage 2), or the control panel returns 500"
+  info "no database/migrations jobs table: craft:up creates Laravel's queue tables after 6.0.0-alpha.20; on alpha.20 and earlier, add the 6.x starter's migration in Stage 2"
 fi
 
 section "Modules and custom PHP"
@@ -254,7 +254,7 @@ section "Templates"
 tpl="$root/templates"
 if [ -d "$tpl" ]; then
   info "templates/ has $(find "$tpl" -type f | wc -l | tr -d ' ') file(s) (moves to resources/views/)"
-  grep -q "assets/installer/dist" "$tpl/index.twig" 2>/dev/null && warn "templates/index.twig is the stock Craft 5 welcome page: it returns 500 on Craft 6, replace it with the 6.x starter's"
+  grep -q "assets/installer/dist" "$tpl/index.twig" 2>/dev/null && warn "templates/index.twig is the stock Craft 5 welcome page: returns 500 on 6.0.0-alpha.20 and earlier, and uses view.*; replace it with the 6.x starter's"
   grep_hits "craft.app (needs facades before ejecting)" 'craft\.app\b' "$tpl"
   grep_hits "deprecated filters (filterByValue, firstWhere, index, purify, ucfirst)" '\|\s*(filterByValue|firstWhere|index|purify|ucfirst)\b' "$tpl"
   grep_hits "view.* (Yii view object: use HtmlStack, include() or renderObjectTemplate())" '\bview\.[a-zA-Z]+|\{%\s*(js|css|script|html)\b' "$tpl"
