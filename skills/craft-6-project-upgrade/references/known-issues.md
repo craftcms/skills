@@ -22,7 +22,7 @@ Confirmed failures of the stock upgrade path, and the places where the docs, the
 ## Expected noise, not errors
 
 - **About a dozen "Ambiguous class resolution" warnings** during `composer update` while the adapter is installed: the same trait classes ship in `craftcms/cms` and `craftcms/yii2-adapter`. Install succeeds, and they disappear after the adapter is removed. Don't add autoload exclusions. (alpha.20)
-- **Adapter-internal deprecation warnings** that come back after the project is clean, with every trace frame inside `vendor/craftcms/yii2-adapter`: `Craft::$app->fields` (`ApplicationTrait.php`), `generalConfig.isSystemLive` and `generalConfig.generateTransformsBeforePageLoad` (the adapter's `GeneralConfig.php`). They stop once the adapter is removed, so they don't block Stage 4. (alpha.20, confirmed in two runs)
+- **Adapter-internal deprecation warnings** that come back after the project is clean, with every trace frame inside `vendor/craftcms/yii2-adapter`: `Craft::$app->fields` (`ApplicationTrait.php`), `generalConfig.isSystemLive` and `generalConfig.generateTransformsBeforePageLoad` (the adapter's `GeneralConfig.php`). They stop once the adapter is removed, so they don't block Stage 4. (Confirmed in two runs on alpha.20; fixed on 6.x after alpha.20 by craftcms/cms 43d1474, so later versions shouldn't log them.)
 - **Login redirects to the front end**, not the dashboard, on Craft 6. Navigate to the dashboard explicitly. Navigating away immediately after submitting the login form can cancel the login: wait for the URL to leave the login page.
 
 ## Docs, tool and code disagree
