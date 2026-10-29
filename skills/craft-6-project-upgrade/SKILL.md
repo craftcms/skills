@@ -35,16 +35,17 @@ Agree an **end state** in Stage 0:
 2. Establish a working 5.x baseline to compare against: the site URL in `.env` (often `PRIMARY_SITE_URL`) must match where you serve it ([references/environments.md](references/environments.md#running-a-local-server)), the home page returns 200, and a browser login reaches the dashboard.
 3. Resolve blockers on Craft 5:
    - Craft must be on the latest 5.x (the tool refuses anything below 5.9.0). Update with `php craft update all` or Composer, run `php craft up`, and commit.
-   - Plugins **and dev tools**: list each Composer package that depends on `craftcms/cms` with whether a release supports Craft 6 (check Packagist for a `craftcms/cms ^6` requirement). During the alpha most plugins don't, and neither does `craftcms/generator` (see known issues). Options per package: wait, remove it, replace it with Laravel configuration (filesystem, mailer and logging plugins are obsolete), or disable a plugin for the upgrade with `CRAFT_DISABLED_PLUGINS="*"`. Any package left in `composer.json` that requires Craft 5 will block `composer update` in Stage 2, so decide now.
-   - Categories, tags and global sets will be entrified (converted to entries) during the upgrade. If the developer wants control over that, run the `entrify/*` commands on 5.x first.
+   - Plugins **and dev tools**: for each Composer package that depends on `craftcms/cms`, find a version that supports Craft 6 (Packagist: a `craftcms/cms ^6` requirement, possibly only on a dev branch). Then prove the whole set resolves together, in a scratch copy of the project: set `craftcms/cms` and `craftcms/yii2-adapter` to the target version and each plugin to its candidate, and run `composer update -W --dry-run`. A plugin's own dependencies (for example a field library it builds on) can still require Craft 5. A dev branch is pre-release code: list each one and get the developer's approval to use it.
+   - For each plugin with no resolvable Craft 6 version, decide with the developer: wait, remove it, or replace it with Laravel configuration (filesystem, mailer and logging plugins are obsolete). **If the project depends on it** (it provides field types holding content, SEO, forms or other site features), the upgrade is blocked: say so, and stop here unless the developer explicitly accepts a degraded result. Never remove a plugin that owns field types just to get past this: the content stays in the database, but the site stops rendering it, and saving those entries can lose it.
+   - Categories, tags and global sets: Craft 6 keeps them only as legacy elements, which need the adapter. To reach end state B, or to stop depending on them, convert them on 5.x first with `php craft entrify/categories`, `entrify/tags` and `entrify/global-set`, and update the templates that query them. After the upgrade, check what happened to any that remain (Stage 3).
 4. Prepare the 5.x site, using the project's normal CLI:
    - `php craft project-config/apply` (so files and DB agree), then `php craft queue/run` until the queue is empty: the queue table is dropped during the upgrade and pending jobs are lost.
    - Resolve outstanding deprecation warnings (Utilities > Deprecation Warnings, or the `deprecationerrors` table).
    - Note the email transport settings (Settings > Email) and every filesystem; both move to Laravel config.
    - Back up the database (`php craft db/backup`) and commit or copy the code.
-5. Agree the end state (A or B) and the package decisions with the developer.
+5. Agree the end state (A or B) and the package decisions with the developer. If a needed plugin blocks the upgrade, the honest outcome is "blocked"; don't plan around it silently.
 
-**Exit:** preflight shows no blockers, the baseline works, the queue is empty, a DB backup and a clean commit exist, and the plan is written down.
+**Exit:** preflight shows no blockers, the plugin set resolves in a dry run, the baseline works, the queue is empty, a DB backup and a clean commit exist, and the plan is written down.
 **Checkpoint:** present the preflight summary, the package decisions and the end state. Get agreement before running the tool.
 
 ## Stage 1: Run the upgrade tool
@@ -65,18 +66,19 @@ Agree an **end state** in Stage 0:
 
 **Goal:** Craft 6 is installed, the database is migrated, and the app boots over HTTP and CLI.
 
-Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts boot the app, and `craft:setup:publish` copies Craft's default config files into `config/craft/` only where none exist, and recreates the `craft` executable the tool deleted.
+Do steps 1 to 4 **before** `composer update`: its `post-autoload-dump` scripts boot the app, and `craft:setup:publish` copies Craft's default config files into `config/craft/` only where none exist, and recreates the `craft` executable the tool deleted.
 
 1. `composer.json`: apply the Stage 0 package decisions, and remove `yiisoft/yii2-shell`. The tool sets `craftcms/cms` to `^6.0.0-alpha.1`. If the newest release is 6.0.0-alpha.20 or older, require `6.x-dev` for both `craftcms/cms` and `craftcms/yii2-adapter` instead (Craft 5's `minimum-stability` is already `dev`). Check that every remaining package that depends on `craftcms/cms`, including `craftcms/generator`, has a version that supports Craft 6; remove any that doesn't. **Keep `yiisoft/yii2-composer` in `config.allow-plugins`** while the adapter is installed: it pulls in Yii, and Composer refuses to run with the plugin blocked. With DDEV, `ddev restart` first so Composer runs on PHP 8.5.
 2. `config/craft/general.php`:
    - set `'@webroot' => public_path()` (the stock value `dirname(__DIR__) . '/web'` now points at `config/web`), and fix `@web` if set;
    - remove `omitScriptNameInUrls()`, `pathParam()` and `enableTwigSandbox()`.
-3. `.env`: set `APP_ENV` (for example `local`) and `APP_URL` (the URL you'll serve on). The tool sets neither, and Laravel then runs as `production`. `CRAFT_ENVIRONMENT` is left alone; keep it until general config no longer reads it. Also add Craft 6's build output to `.gitignore` now (`/public/vendor/craft`, `/public/storage`, `/storage/*.key`, `*.log`), because `composer update` publishes control panel assets into `public/vendor/craft`.
-4. `composer update -W`. A real failure is a non-zero exit or a script error: fix the cause and rerun; don't move on with a half-installed vendor directory. Run `php artisan craft:setup:publish` yourself if the scripts didn't.
-5. `php artisan key:generate` (sets `APP_KEY`, which replaces `CRAFT_SECURITY_KEY`).
-6. `php artisan craft:up` (backs up the database first, `--noBackup` skips that). "Application in production" warnings mean `APP_ENV` isn't set. If a migration fails, Craft can leave the site in maintenance mode (`storage/framework/down`): after fixing the cause and rerunning, `php artisan up` brings it back.
-7. If the site uses project config: `php artisan craft:project-config:apply` should succeed with no changes.
-8. Smoke test: serve the site ([references/environments.md](references/environments.md#running-a-local-server)); the home page and `/admin/login` (or the custom `cpTrigger`) return 200.
+3. `config/filesystems.php`: add a disk for each Craft filesystem, keyed by its handle, from the tool's suggestions. Translate every Craft alias (`@webroot/...`) and `$ENV_VAR` in them to real Laravel values (`public_path('...')`, `env('...')`); Laravel config doesn't resolve Craft aliases. Craft's migrations convert filesystems to disks, so they must exist before `craft:up`.
+4. `.env`: set `APP_ENV` (for example `local`) and `APP_URL` (the URL you'll serve on). The tool sets neither, and Laravel then runs as `production`. `CRAFT_ENVIRONMENT` is left alone; keep it until general config no longer reads it. Also add Craft 6's build output to `.gitignore` now (`/public/vendor/craft`, `/public/storage`, `/storage/*.key`, `*.log`), because `composer update` publishes control panel assets into `public/vendor/craft`.
+5. `composer update -W`. A real failure is a non-zero exit or a script error: fix the cause and rerun; don't move on with a half-installed vendor directory. Run `php artisan craft:setup:publish` yourself if the scripts didn't.
+6. `php artisan key:generate` (sets `APP_KEY`, which replaces `CRAFT_SECURITY_KEY`).
+7. `php artisan craft:up` (backs up the database first, `--noBackup` skips that). "Application in production" warnings mean `APP_ENV` isn't set. If a migration fails, Craft can leave the site in maintenance mode (`storage/framework/down`): after fixing the cause and rerunning, `php artisan up` brings it back.
+8. If the site uses project config: `php artisan craft:project-config:apply` should succeed with no changes.
+9. Smoke test: serve the site ([references/environments.md](references/environments.md#running-a-local-server)); the home page and `/admin/login` (or the custom `cpTrigger`) return 200.
 
 **Exit:** `composer update` succeeded, `craft:up` reports nothing to run (Craft's migrations aren't in the app's `database/migrations/`, so `migrate:status` may say "No migrations found"; that's normal), `php artisan list` lists the `craft:*` commands, `php craft` works, and the home page and login page return 200.
 **Checkpoint:** report what ran, any errors and how they were fixed. Commit ("Install Craft 6").
@@ -86,18 +88,22 @@ Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts b
 **Goal:** the site works on Craft 6 with the adapter, and the developer knows what is left.
 **References:** [references/after-upgrade.md](references/after-upgrade.md), [references/docs/compatibility.md](references/docs/compatibility.md)
 
-1. Work through the tool's Next steps and the preflight WARN lines that apply now: general config settings that were removed or moved, `loginPath`, multi-environment config, `db.php`, filesystems to `config/filesystems.php` disks, the email transport to `config/mail.php`, `.env.example*` files, `.gitignore`, and deploy scripts. [references/after-upgrade.md](references/after-upgrade.md) has the details for each.
+1. Read each upgraded plugin's upgrade notes and update its config file in `config/craft/` (for example Element API endpoints become Laravel-style routes, and each site's URL prefix may need its own). Then work through the tool's Next steps and the preflight WARN lines that apply now: general config settings that were removed or moved, `loginPath`, multi-environment config, `db.php`, filesystems to `config/filesystems.php` disks, the email transport to `config/mail.php`, `.env.example*` files, `.gitignore`, and deploy scripts. [references/after-upgrade.md](references/after-upgrade.md) has the details for each.
 2. Compare the project with the Craft 6 starter project for files the tool does not create: `routes/web.php`, `routes/console.php`, `app/Providers/AppServiceProvider.php`, `bootstrap/providers.php`. Add them only when the project needs them (custom routes, a module, a scheduler), and say why.
-3. Verify, and record the evidence ([references/after-upgrade.md](references/after-upgrade.md#verification)):
+3. Verify against the 5.x baseline, and record the evidence ([references/after-upgrade.md](references/after-upgrade.md#verification)). Build a feature list from the project first: every front-end route and template, each site and its URL prefix, every plugin feature (forms, endpoints, field types), module features, and both admin and non-admin users. Then check each one:
    - the front end: the home page and a sample of entry URLs return 200 and render real content;
    - the control panel: sign in with a browser, then load the dashboard, an entry edit page and Settings, checking each final URL is not the login page;
-   - saving an entry through the control panel works, confirmed by reading the value back (database or front end), and the browser console has no new errors after the save. An empty project needs an entry type and section first ([recipe](references/after-upgrade.md#a-test-entry-on-an-empty-project));
+   - saving an entry through the control panel works, confirmed by reading the value back (database or front end), and the browser console has no new errors after the save. Also compare what you **didn't** edit: other fields, relations, nested entries, and the entry on every site;
+   - every field input in the editor renders as a working control (relation fields included), not an error message or raw markup;
+   - front-end forms (login, contact, ...) submit successfully, and land on the right site and language; An empty project needs an entry type and section first ([recipe](references/after-upgrade.md#a-test-entry-on-an-empty-project));
    - the queue processes real jobs: saving an entry queues some, then `php artisan queue:work --stop-when-empty` runs them, and `jobs` and `failed_jobs` are empty;
-   - email: `php artisan craft:mailer:test` succeeds. With the `log` mailer that proves rendering, not delivery; say so;
+   - email: `php artisan craft:mailer:test --to=you@example.com --no-interaction` succeeds. With the `log` mailer that proves rendering, not delivery; say so;
    - `storage/logs/` has no new errors since the verification started.
 4. List the deprecation warnings (Utilities > Deprecation Warnings, or the `deprecationerrors` table), each with the file and line from its trace. They are Stage 4's to-do list.
 
-**Exit:** every check in step 3 passes, or fails for a reason that is documented and agreed.
+5. Check categories, tags and global sets: if they weren't converted on 5.x, they're still legacy elements, and need the adapter.
+
+**Exit:** every check in step 3 passes, or fails for a reason that is documented and agreed. If a feature the site needs doesn't work, report the result as **degraded** or **blocked**, not as end state A.
 **Checkpoint:** report what works, what was changed, and the deprecation list. For end state A, this is the end: write the final report (below). Commit ("Fix Craft 6 configuration"). Ask whether to continue to Stage 4.
 
 ## Stage 4: Clear deprecations and remove the adapter (end state B only)
@@ -106,7 +112,7 @@ Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts b
 **References:** [references/after-upgrade.md](references/after-upgrade.md#removing-the-adapter), [references/docs/compatibility.md](references/docs/compatibility.md)
 
 1. Check that nothing else requires the adapter: `composer why craftcms/yii2-adapter` should list only the project. If a plugin requires it, stop: end state B isn't possible until that plugin drops it. Say so.
-2. Modernize what only the adapter supports: `config/craft/general.php` to the native `CraftCms\Cms\Config\GeneralConfig` (and drop `craft\helpers\App`), multi-environment and app-type config, `config/craft/app.php` (delete the stock one), `config/craft/routes.php` (to `routes/web.php`), HTMLPurifier configs (delete an unmodified `Default.json`, translate custom ones), and templates that use `craft.app`, `view.*`, Yii flashes and the deprecated filters. Modules move into `app/` as Laravel service providers (the `craft-6-plugin-upgrade` skill covers the code).
+2. Modernize what only the adapter supports: `config/craft/general.php` to the native `CraftCms\Cms\Config\GeneralConfig` (and drop `craft\helpers\App`), multi-environment and app-type config, `config/craft/app.php` (delete the stock one), `config/craft/routes.php` (to `routes/web.php`), HTMLPurifier configs (delete an unmodified `Default.json`, translate custom ones), and templates that use `craft.app`, `view.*`, Yii flashes and the deprecated filters. Modules move into `app/` as Laravel service providers. The `craft-6-plugin-upgrade` skill (https://github.com/craftcms/skills/tree/main/skills/craft-6-plugin-upgrade) covers the code; use it if it's installed, and otherwise follow its references from that URL.
 3. Clear the deprecation warnings table, exercise the site again (Stage 3, step 3), and list what comes back, with traces. Classify each warning:
    - **project-owned**: the trace reaches the project's config, templates, modules or a plugin, **or the message names a project file or setting** (for example a `config/craft/htmlpurifier/*.json` file or a general config setting), even when every frame is in vendor code. Fix it.
    - **not the project's**: no frame is in project or plugin code, only the adapter, Craft core, Laravel and entry points (`public/index.php`, `artisan`). The project can't fix these. Treat them as a Craft bug (see Ground rules), and don't let them block removing the adapter.
@@ -122,7 +128,7 @@ Do steps 1 to 3 **before** `composer update`: its `post-autoload-dump` scripts b
 
 End with a short report for the developer:
 
-- the end state reached, and the Craft, adapter, Laravel and PHP versions installed;
+- the end state reached (A, B, degraded or blocked, and why), and the Craft, adapter, Laravel, plugin and PHP versions installed, with commits for `-dev` builds;
 - what changed, stage by stage, with the commits;
 - what was verified, and how (commands, URLs, status codes and final URLs, saved values);
 - anything left: remaining deprecations, plugins not yet upgraded, config translated by hand that needs a second look, deploy changes (paths, PHP 8.5, `artisan` commands, a queue worker and the scheduler), and anything unverified (for example real email delivery);

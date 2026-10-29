@@ -34,7 +34,7 @@ Configure a mailer in `config/mail.php` (`MAIL_MAILER`, `MAIL_HOST`, ... in `.en
 
 ## Filesystems and assets
 
-Craft filesystems are gone. Each becomes a Laravel disk in `config/filesystems.php`, keyed by the filesystem's **handle**. The tool prints a suggestion for each. Local filesystems map to the `local` driver with `root` and `url`. Check that asset URLs still resolve after the web root rename (`@webroot`, `@web` in the filesystem's base path and URL).
+Craft filesystems are gone. Each becomes a Laravel disk in `config/filesystems.php`, keyed by the filesystem's **handle**. The tool prints a suggestion for each. Local filesystems map to the `local` driver with `root` and `url`. The suggestions can keep Craft aliases and `$ENV` references, which Laravel config doesn't resolve: use `public_path('uploads/images')`, `env('S3_BUCKET')` and so on. Add the disks before `craft:up`. Then check that asset URLs and image transforms still resolve, including on every site.
 
 ## Templates
 
@@ -49,7 +49,7 @@ Templates live in `resources/views/`. The adapter keeps most Twig working. Befor
 
 ## Modules
 
-A Craft 5 module keeps working through the adapter. To modernize it, turn it into a Laravel service provider in `app/` (registered in `bootstrap/providers.php`). The `craft-6-plugin-upgrade` skill covers the code changes (events, services, controllers, templates).
+A Craft 5 module keeps working through the adapter. To modernize it, turn it into a Laravel service provider in `app/` (registered in `bootstrap/providers.php`). The `craft-6-plugin-upgrade` skill (https://github.com/craftcms/skills/tree/main/skills/craft-6-plugin-upgrade) covers the code changes: events, services, controllers, console commands, Twig extensions and templates.
 
 ## Deployment
 
@@ -64,7 +64,7 @@ Collect evidence, not impressions. Serve the site as described in [environments.
 - **Control panel:** `/admin/login` (or the `cpTrigger`) returns 200. Sign in with a real browser (for example `agent-browser`) and wait until the URL leaves the login page before navigating anywhere: navigating while the login request is in flight cancels it. With agent-browser, `wait --fn 'location.pathname !== "/admin/login"'` works; `wait --url` with a prefix can return too early. Then open the dashboard, an entry and Settings and check each final URL. A 200 on `/admin/login` after a redirect is a failure. Check the browser console after each save, not only on page load. Use a fresh browser session for the final JavaScript error check; old errors persist in a session.
 - **Saving:** edit an entry in the control panel, save, and read the value back from the database or the front end. Don't rely on the "Entry saved" toast alone.
 - **Queue:** after a save, `SELECT COUNT(*) FROM jobs` is non-zero; `php artisan queue:work --stop-when-empty` processes the jobs (`DONE`) and stops; then `jobs` and `failed_jobs` are empty and `php artisan queue:failed` reports none. An empty `--once` run proves nothing. Use Laravel's queue commands rather than the legacy `queue/*` ones.
-- **Mail:** `php artisan craft:mailer:test`. With `MAIL_MAILER=log` the message appears in `storage/logs/`; that proves templates render, not that mail is delivered.
+- **Mail:** `php artisan craft:mailer:test --to=you@example.com --no-interaction`. With `MAIL_MAILER=log` the message appears in `storage/logs/`; that proves templates render, not that mail is delivered.
 - **Logs:** note the size of `storage/logs/laravel.log` (or the daily file) before verifying, and check only what was written after it for `ERROR`/`CRITICAL`.
 - **Deprecations:** `SELECT message, file, line, traces FROM deprecationerrors` (with the table prefix), or Utilities > Deprecation Warnings. Read the `traces` column to see whose code raised each one.
 
