@@ -202,9 +202,9 @@ if [ -f "$cfg/routes.php" ]; then
 fi
 if [ -f "$cfg/twig-sandbox.php" ]; then
   if php -r '$r = include $argv[1]; exit(is_array($r) && array_filter($r) === [] ? 0 : 1);' "$cfg/twig-sandbox.php" 2>/dev/null; then
-    warn "config/twig-sandbox.php is the stock file (empty lists): in Craft 6 it REPLACES the default allow-lists and breaks system email; delete it before composer update"
+    warn "config/twig-sandbox.php is the stock file (empty lists): on Craft 6 builds before cms 7c6ece5 (incl. 6.0.0-alpha.20) it REPLACES the default allow-lists and breaks system email; delete it before composer update"
   else
-    warn "config/twig-sandbox.php is customized: in Craft 6 each list replaces the defaults; rebuild it from vendor/craftcms/cms/config/twig-sandbox.php"
+    warn "config/twig-sandbox.php is customized: on Craft 6 builds before cms 7c6ece5 each list replaces the defaults; rebuild it from vendor/craftcms/cms/config/twig-sandbox.php"
   fi
 fi
 if [ -d "$cfg/htmlpurifier" ]; then
