@@ -89,9 +89,10 @@ Always check the installed source for the exact class and method before relying 
 `Plugin::getInstance()` and `Craft::$app` are the service-locator habit. In upgraded code, get the plugin, its settings and its services from the container:
 
 ```php
-// Bind the settings once, in the plugin's boot():
-public function boot(): void
+// Bind the settings once, in the plugin's register():
+public function register(): void
 {
+    parent::register();
     $this->app->singleton(Settings::class, fn () => $this->getSettings());
 }
 
@@ -102,6 +103,8 @@ public function __invoke(Request $request, Sections $sections, Elements $element
 }
 ```
 
+- Bind in `register()`, not `boot()`. Craft loads the plugin's `routes/*.php` files and its `$events` listeners in a `booting` callback (`Plugin::bootPlugin()`), which runs **before** the plugin's own `boot()`. A route file that resolves `Settings` before the binding exists gets a fresh, empty instance from the container, so routes built from settings silently vanish from `route:list`. The closure keeps the binding lazy, so `getSettings()` runs only when something asks.
+- Add `@method Settings getSettings()` to the plugin class docblock, so static analysis knows the settings' real class.
 - The plugin itself resolves from the container as the same booted instance: `app(MyPlugin::class)` (checked: it is identical to `MyPlugin::getInstance()`, with its handle and settings). Use it only where injection isn't possible (a static method, a closure in `boot()`).
 - Inject into controller `__invoke()`/`handle()` methods, constructors, commands, jobs and listeners. Use a facade only for a one-liner where injection would be awkward.
 - Plain data objects (such as a per-section settings object) can still be created with `new`. Services and the plugin must not be.
@@ -117,7 +120,7 @@ public function __invoke(Request $request, Sections $sections, Elements $element
 | `Craft::$app->getElements()->startCollectingCacheInfo()` / `stopCollectingCacheInfo()` | Inject `CraftCms\Cms\Element\ElementCaches`: same method names, `stopCollectingCacheInfo()` returns `[$dependency, $maxDuration]` |
 | `Craft::$app->getConfig()->getGeneral()->cacheDuration` | Inject `CraftCms\Cms\Config\GeneralConfig` |
 | `ConfigHelper::durationInSeconds()` | `CraftCms\Cms\Support\Config::durationInSeconds()` |
-| `ArrayHelper::remove($a, 'k', $default)` / `ArrayHelper::merge()` | `CraftCms\Cms\Support\Arr::pull($a, 'k', $default)` / `Arr::merge()` (same recursive semantics as Yii) |
+| `ArrayHelper::remove($a, 'k', $default)` / `ArrayHelper::merge()` | `CraftCms\Cms\Support\Arr::pull($a, 'k', $default)` / `Arr::merge()` (same recursive semantics as Yii). `Arr::pull()` throws a `TypeError` on an object, where `ArrayHelper::remove()` returned the default: check `is_array()` first when the value may be an object |
 | `Craft::configure($query, $criteria)` | `CraftCms\Cms\Support\Typecast::configure($query, $criteria)` (what core does) |
 | `$request->getPathInfo()` / `getQueryString()` | `$request->path()` / `$request->getQueryString()` |
 | `Craft::$app->getSites()->getCurrentSite()` | Inject `CraftCms\Cms\Site\Sites` and call `getCurrentSite()` |

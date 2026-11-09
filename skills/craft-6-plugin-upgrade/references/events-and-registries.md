@@ -67,6 +67,7 @@ event($e = new DeliveryConfirmed);
 - Cancelable (old `CancelableEvent`): `use CraftCms\Cms\Shared\Concerns\ValidatableEvent`, check `$event->isValid`.
 - Handleable: `use CraftCms\Cms\Shared\Concerns\HandleableEvent`, check `$event->handled`.
 - First non-null return: `Event::until()` or `event(..., halt: true)`.
+- Don't build a veto on a listener returning `false`. A normal dispatch stops calling listeners at a `false` return without telling the caller, and Larastan rejects `event(..., halt: true) === false` as always false (the declared return type is `array|null`). Use `ValidatableEvent`.
 - Implement `Illuminate\Contracts\Events\ShouldDispatchAfterCommit` to defer until the DB transaction commits.
 
 If your plugin's old events must keep working for downstream code, the legacy Yii event system cannot be proxied without the adapter. Craft forwards new events to Yii in a static `registerEvents()` method on legacy classes (see `craft\elements\User` and `CraftCms\Yii2Adapter\Event\EventCompatibility::boot()`). The bridge pattern for your own events, and when to choose it over a clean break, is in [strategy.md](strategy.md#bridging-old-yii-events-needs-the-adapter).

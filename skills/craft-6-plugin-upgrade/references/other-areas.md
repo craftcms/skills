@@ -28,7 +28,7 @@ Define `schedule(Schedule $schedule)` on the plugin (`HasScheduling`) using `com
 
 ## Mail
 
-- Mailer adapters are gone. Mailers are configured in Laravel (config file, selected in Settings, Email). The docs name both `config/mail.php` (approach page) and `config/mailer.php` (mail page), so verify in source.
+- Mailer adapters are gone. Mailers are configured in Laravel (config file, selected in Settings, Email). On the adapter, a legacy transport adapter saved in project config still works ([strategy.md](strategy.md#is-the-plugin-still-needed)). The docs name both `config/mail.php` (approach page) and `config/mailer.php` (mail page), so verify in source.
 - System messages: implement `getSystemMessages()` returning `[key => fn () => new SystemMessage(...)]`. Send via `app(SystemMessages::class)->mailable($key, $user, $vars)` and `Mail::send($message)`.
 - Other mail: extend `CraftCms\Cms\Email\Mailables\CraftMailable` (adds `siteId` for per-site mailer overrides).
 - Monitor or suppress outgoing mail with a listener on `Illuminate\Mail\Events\MessageSending` (return `false` to suppress).
@@ -55,7 +55,7 @@ Define `schedule(Schedule $schedule)` on the plugin (`HasScheduling`) using `com
 
 ## Filesystems
 
-Removed. Projects use Laravel disks (`config/filesystems.php`) and keep the old handle. Filesystem-type plugins are probably obsolete.
+Removed. Projects use Laravel disks (`config/filesystems.php`) and keep the old handle. Filesystem-type plugins are probably obsolete, but not always their other features ([strategy.md](strategy.md#is-the-plugin-still-needed)). On the adapter, a legacy filesystem only serves URLs once its volume has `hasUrls` set, because that setting moved to the volume.
 
 ## Local development
 

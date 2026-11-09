@@ -200,7 +200,7 @@ For a front-end form, put a test template in `workbench/resources/views/` (the w
 
 Run these with `vendor/bin/testbench tinker --execute='include "/tmp/fixture.php";'`.
 
-The same code works at the end of the workbench seeder (demo content) and inside Pest tests. Build fixtures through Craft's public services (`Sections`, `EntryTypes`, `Elements`, `UserPermissions`) as below. `CraftCms\Cms\Database\Factories\…` (`UserFactory` and friends) are in Craft's `autoload-dev`, so a plugin can't use them.
+The same code works at the end of the workbench seeder (demo content) and inside Pest tests. Build fixtures through Craft's public services (`Sections`, `EntryTypes`, `Elements`, `UserPermissions`) as below. `CraftCms\Cms\Database\Factories\…` (`UserFactory` and friends) ship in the package but are in Craft's own `autoload-dev`. To use them in Pest tests, map `"CraftCms\\Cms\\Database\\Factories\\": "vendor/craftcms/cms/database/Factories/"` in the plugin's `autoload-dev`. Their `createElement()` writes rows directly and fires no element events, so save through `Elements::saveElement()` when the plugin listens for saves.
 
 The admin account is user id 1: `admin` / `password123` in the workbench, `craftcms` / `craftcms2018!!` in `PluginTestCase` (log in as it with `$this->actingAs(\CraftCms\Cms\User\Models\User::find(1))`).
 

@@ -10,7 +10,7 @@ Source: Craft 6.x extend docs, "Migrations".
 - A migration named `Install` runs `up()` on install and `down()` on uninstall. Make it a named class in `Install.php` (not an anonymous class), and split `up()` into steps (`createTables()`, `createIndexes()`, `addForeignKeys()`, `insertDefaultData()`).
 - `Install::down()` must remove everything the plugin added: drop its tables, delete its field layouts (match both the old and new class names if you aliased classes), and remove its project config (`ProjectConfig::remove('<handle>')`).
 - Dated migrations after `Install` only need `up()`. The Craft 5 incremental migrations are culled, and a plugin that ships a data migration usually updates project config as well (`ProjectConfig::set(...)`) when the data lives there.
-- Bump `$schemaVersion` and set `$minVersionRequired` on the plugin class to the latest 5.x version users must upgrade from first.
+- Bump `$schemaVersion` above the last value the Craft 5 version shipped (for example `3.0.0` after `2.0`), and set `$minVersionRequired` on the plugin class to the latest 5.x version users must upgrade from first. Leaving the default `1.0.0` makes project config from an existing site look newer than the installed plugin.
 - `up()` and `down()` return nothing. Let exceptions bubble.
 - Craft migration events (`EVENT_AFTER_UP`, `EVENT_AFTER_DOWN`) are replaced by Laravel's migration events.
 
@@ -48,7 +48,8 @@ return new class extends Migration
 - `Schema::createIndex($table, ['col'], unique: true)` is available as a Craft macro.
 - Replace `$this->createTable()`, `addColumn()`, `createIndex()`, `addForeignKey()`, `dropTable()` etc. with `Schema` and `Blueprint`. Laravel column types and modifiers are named differently, so check the Laravel migrations docs for each.
 - Generate a stub with `ddev artisan make:migration`, then move the file into the plugin's `database/migrations/`. It is not yet plugin-aware, but the file has no class name or namespace, so moving is safe as long as the filename is unique and ordered. Customized stubs in the host app may change the output.
-- Driver differences: the schema builder smooths most. Where needed, branch on `DB::connection()->getDriverName()` (`'mysql'`, `'pgsql'`).
+- Driver differences: the schema builder smooths most. Where needed, branch on `DB::connection()->getDriverName()` (`'mysql'`, `'pgsql'`). Plugins that alter Craft's own tables (foreign keys, indexes) need testing on MySQL, Postgres and SQLite: SQLite rebuilds the table to add a foreign key and can drop index expressions, and Postgres aborts the surrounding transaction when one statement fails (wrap each in `$connection->transaction()` to get a savepoint).
+- `archiveTableIfExists()` exists on `CraftCms\Cms\Database\Migration` in current 6.x. Craft 5's version truncated the archived table name.
 - Optional migrations can be offered with `$this->publishesMigrations([...])` in `boot()`. Never publish the plugin's regular migrations, because Craft already tracks them and publishing causes double runs.
 - If a Laravel package you wrap already ships migrations (for example Cashier), don't duplicate them.
 - Extra migration tracks: only if you genuinely need them. See `MigrateCommand::registerMigrator()` in [events-and-registries.md](events-and-registries.md).

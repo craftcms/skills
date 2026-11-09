@@ -51,7 +51,7 @@ Read settings anywhere after boot:
 $settings = Plugin::getInstance()->getSettings();
 ```
 
-To inject it instead, bind it in `boot()`: `$this->app->instance(Settings::class, $this->getSettings());`. Then type-hint `Settings $settings` in controllers, jobs and services.
+To inject it instead, bind it lazily in `register()` (after `parent::register()`): `$this->app->singleton(Settings::class, fn () => $this->getSettings());`. Not in `boot()`: Craft loads the plugin's route files and `$events` listeners before `boot()` runs, so a route file that reads `Settings` would get an empty instance. Then type-hint `Settings $settings` in controllers, jobs and services, and add `@method Settings getSettings()` to the plugin class for static analysis.
 
 ## Settings page
 

@@ -97,7 +97,7 @@ Report what was built, how each feature was verified, and anything unverified.
 
 ## Rules of thumb
 
-- `boot()` is for initialization and supports method injection: `public function boot(Sections $sections): void`. Avoid `register()` unless you need early Laravel wiring (container bindings, CSRF exemptions, rate limiters).
+- `boot()` is for initialization and supports method injection: `public function boot(Sections $sections): void`. Avoid `register()` unless you need early Laravel wiring (container bindings such as the settings class, CSRF exemptions, rate limiters). Craft loads route files and `$events` before `boot()`, so anything they resolve must be bound in `register()`.
 - Prefer the declarative plugin properties (`$events`, `$commands`, `$fieldTypes`, `$widgets`, `$utilities`, `$elementTypes`, `getPermissions()`, `schedule()`) over manual registration. They are `protected` in the base traits: redeclare them as `protected`.
 - Your plugin's `database/migrations/Install.php` runs on install (`up()`) and uninstall (`down()`). Other files in `database/migrations/` are updates, run by `craft:up` or `migrate` after the plugin's `schemaVersion` changes.
 - Plugin settings live in project config. Put large or frequently-changing data in your own tables, not settings.

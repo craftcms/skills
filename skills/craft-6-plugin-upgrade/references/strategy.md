@@ -68,9 +68,20 @@ If the plugin has its own extension surface (events, service APIs), decide and t
 
 Some low-level plugins are obsolete in Laravel:
 
-- **Mail transport adapters.** Projects configure mailers in Laravel config and select one in Settings, Email. A control panel config layer tracked in project config may still be welcome.
+- **Mail transport adapters.** Projects configure mailers in Laravel config and select one in Settings, Email. If Laravel or Symfony has a driver for the service, a native major is usually not worth it: document the Laravel setup instead. On the adapter, Craft registers the transport saved in project config as a `craft-transport` mailer (`yii2-adapter/src/Mail/LegacyTransportCompatibility.php`), so the adapter release needs no bridge of its own. It does need `symfony/http-client`, which Craft 6 doesn't install. Tell users that `composer remove` of the plugin also removes the Symfony transport packages, and to require them first.
 - **Custom log back-ends.** Plugins may boot too late to capture a full picture. Consider whether Laravel logging is enough.
-- **Filesystems.** Removed in Craft 6. Projects configure Laravel disks in `config/filesystems.php` and select them in each volume's settings.
+- **Filesystems.** Removed in Craft 6. Projects configure Laravel disks in `config/filesystems.php` and select them in each volume's settings. A filesystem plugin often has other features (image analysis, CDN invalidation): keep those in the native major, working with Laravel's disks, and drop only the filesystem. On the adapter, Craft's upgrade migration needs a disk for every legacy filesystem and then removes the `fs` project config, so document the upgrade steps.
+
+Check before declaring a plugin obsolete: search Craft 6's source for the feature. A plugin that repairs or adds something core still doesn't do (missing foreign keys, for example) is still needed.
+
+## Release tracks
+
+Craft's own plugins ship Craft 6 support on two branches:
+
+- **Adapter release, on the current major:** the `craftcms/cms` constraint widened to include `^6.0.0-alpha.1`, the adapter in `suggest`, and only the fixes Craft 6 needs, gated on the Craft version where they would change Craft 4 or 5 behavior ([required-changes.md](required-changes.md#composer-two-ways-to-ship-the-adapter-release)).
+- **Native major, on a new branch** cut from the current one (for example `5.x` from `4.x`): Stages 2 to 5, requiring `craftcms/cms:^6.0.0` and PHP `^8.5`. Before picking the number, check whether a branch for the next major already exists with unreleased work.
+
+Keep the two on separate branches and pull requests. Commit bugs that predate the upgrade separately from the upgrade itself, so they can go to the current major too.
 
 ## Clean break: Laravel events and an upgrade guide
 
@@ -105,4 +116,4 @@ See [required-changes.md](required-changes.md) for the alias and deprecation sni
 
 ## Style
 
-Craft's 6.x codebase uses Laravel Pint. Optional for plugins: `composer require --dev laravel/pint`, then `vendor/bin/pint --test path/to/plugin`. No `pint.json` is needed unless excluding directories.
+Craft's 6.x codebase uses Laravel Pint. For the native major, replace ECS with Pint rather than running both: they undo each other's changes (`fn ()` and `! $x` versus `fn()` and `!$x`). Copy core's `pint.json` (`{"preset": "laravel", "rules": {"no_empty_statement": false}}`), remove `ecs.php` and its references (`composer.json` scripts, `.lintstagedrc.json`, `.gitattributes`), and point `check-cs`/`fix-cs` at Pint. See [testing.md](testing.md#tooling-and-ci) for static analysis and CI.

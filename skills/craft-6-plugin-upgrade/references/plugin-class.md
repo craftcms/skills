@@ -6,7 +6,8 @@ Source: Craft 6.x extend docs, "Extension Options", "Base Plugin Class".
 
 Laravel builds the app, discovers providers, calls each provider's `register()`, then `boot()`. Craft's `craftcms/plugin-installer` caches `craftcms-plugin` packages and boots them only when installed and enabled (respecting `disabledPlugins`).
 
-- Put initialization in `boot()`. `register()` runs before other providers have registered, so it is wrong for anything that depends on them (registries, other plugins' services, legacy Yii events). It is fine for early Laravel wiring that depends on nothing else: `PreventRequestForgery::except([...])`, `RateLimiter::for(...)` and `Event::listen()` for Laravel events.
+- Put initialization in `boot()`. `register()` runs before other providers have registered, so it is wrong for anything that depends on them (registries, other plugins' services, legacy Yii events). It is fine for early Laravel wiring that depends on nothing else: container bindings, `PreventRequestForgery::except([...])`, `RateLimiter::for(...)` and `Event::listen()` for Laravel events.
+- Craft's own plugin wiring (routes, `$events`, `$commands`, registries) runs in a `booting` callback, **before** your `boot()`. Anything a route file needs, such as the bound settings class, must be bound in `register()`.
 - There is no central `Craft::$app` before plugins boot.
 - Replaces `Craft::$app->onInit()`, `EVENT_INIT` and `EVENT_AFTER_LOAD_PLUGINS`: `app()->booted($callback)`.
 - Cleanup at end of lifecycle: `app()->terminating($callback)`.

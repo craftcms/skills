@@ -14,7 +14,8 @@ Source: Craft 6.x extend docs, "Templates + Rendering", "Behaviors" (macros), "H
 
 - The helpers are namespaced functions: `use function CraftCms\Cms\template;` (and `pageTemplate`, `t`, and so on) at the top of the file. They return a `string`, so a controller can return the result directly.
 - Default mode follows the request. A plugin's own CP templates (widget bodies, email or download pages) rendered during a front-end request need `TemplateMode::Cp` passed explicitly, or they are not found. Only use `TemplateMode::Site` for templates a developer chose or defined in a settings UI. Never assume a user-space template exists.
-- Mark classes, properties or methods as sandbox-safe with `#[CraftCms\Cms\Twig\Attributes\AllowedInSandbox]`.
+- Mark classes, properties or methods as sandbox-safe with `#[CraftCms\Cms\Twig\Attributes\AllowedInSandbox]`. The sandbox blocks `json_encode`, `className()` and `atom`, and Yii `Event` objects. Don't tell sites to allow `json_encode`: it serializes objects the sandbox would otherwise block, which leaked a user's password hash in testing. Build JSON with `"{{ value|e('js') }}"`, and give sandboxed templates arrays rather than objects.
+- `renderString()` (`TemplateManager::renderString()`) turns autoescaping off for string templates. Check escaping with a real request to a template file.
 - Laravel's `view()` also resolves Blade templates in your template root. Blade gets the same globals but not Twig's filters/functions.
 - Events: `TemplateRendering`/`TemplateRendered` (and `PageTemplateRendering`/`PageTemplateRendered` for page templates) in `CraftCms\Cms\Twig\Events`.
 
@@ -70,7 +71,14 @@ No Yii behaviors. Use `Macroable` macros, registered in `boot()`. See [models-an
 
 ## Control panel front end
 
-The CP client-side architecture is being rebuilt (web components via Lion, Inertia, Vue). The docs do not yet give specifics. Prefer plugin `$scripts`/`$styles`/`$vite` publishing ([other-areas.md](other-areas.md)) over `{% js %}` snippets, and flag any heavy CP UI work as unverified.
+The CP client-side architecture is being rebuilt (web components, Inertia, Vue), and the docs don't cover it yet. Prefer plugin `$scripts`/`$styles`/`$vite` publishing ([other-areas.md](other-areas.md)) over `{% js %}` snippets, copy the closest core component, and flag anything below that you can't check as unverified. These patterns worked in real upgrades:
+
+- **Build:** a plugin Vite build marks `vue` and `@craftcms/cp` as external (Craft provides them at runtime), sets the Vue plugin's `template.compilerOptions.isCustomElement` to `tag => tag.startsWith('craft-')`, and writes to `public/build`, registered with `$vite`. Commit the build output. A small script with no build step can go in `$scripts`.
+- **Registering components:** `window.Cp.booting(cp => cp.$components.register('MyUtility', MyUtility))`. Server-rendered CP HTML (utility `contentHtml()`, widget bodies) is compiled as a Vue template, so return a tag for the component rather than HTML with inline scripts.
+- **Posting from a CP page:** route the action in `routes/cp.php` (the CP group already adds `auth` and `can:accessCp`; add the plugin's own `can:` middleware). The controller ends with `Inertia::flash('result', [...])` and `return back();`, as core's `FindAndReplaceController` does. The component posts with `window.Cp.$router.post(url, data, {preserveState: true, preserveScroll: true, onFlash, onError})`: use the mounted app's router, not a separate Inertia import. Tests read `session(Inertia\Support\SessionKey::FLASH_DATA)`. A CP-only action URL can move from `routes/actions.php` to this route in the native major; record the old URL in `UPGRADE.md`.
+- **Element editor:** the full-page entry editor is an Inertia page, so `Element::EVENT_DEFINE_SIDEBAR_HTML` and `ElementSidebarHtmlResolving` never fire there. Add a details panel instead: register it with `Cp.$elementDetailsPanels.register()` and feed it data from an `ElementEditorPayloadResolving` listener.
+- **Live Preview:** there's no inline Garnish script in the Vue editor. Use `onPreviewEvent('after-update-iframe' | 'before-close')` from `@craftcms/cp`. Craft's token middleware strips a request parameter named `token`, so don't name your own parameter that.
+- **Testing:** load the page in a real browser and check the console. Many failures (an unregistered component, a missing external) show nothing on the server.
 
 ## Front-end forms (verified on guest-entries)
 
