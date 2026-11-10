@@ -83,7 +83,7 @@ function mollieTransaction(float $amount = 12.3): Transaction
 }
 ```
 
-Fake the provider with `Http::fake([...])` and assert on what was sent with `Http::assertSent(fn(Request $request) => ...)`. Take response bodies from the provider's API reference, not from your own code. Use `Http::preventStrayRequests()` so a missing fake fails instead of calling the real API.
+Fake the provider with `Http::fake([...])` (when the plugin uses an official SDK, fake its HTTP layer instead, such as `\Stripe\ApiRequestor::setHttpClient()` for stripe-php, so tests still check the real request params) and assert on what was sent with `Http::assertSent(fn(Request $request) => ...)`. Take response bodies from the provider's API reference, not from your own code. Use `Http::preventStrayRequests()` so a missing fake fails instead of calling the real API.
 
 ## What to test
 

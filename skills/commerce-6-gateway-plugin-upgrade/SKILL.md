@@ -80,7 +80,7 @@ See [references/webhooks.md](references/webhooks.md).
 1. `processWebHook(): Illuminate\Http\Response`. Never `echo`, `exit()` or send a response yourself.
 2. Implement `getTransactionHashFromWebhook()` so Commerce locks the transaction while the webhook runs.
 3. Treat every webhook as untrusted: verify the signature when the provider signs it, and re-fetch the payment from the provider's API before recording anything. Make it idempotent.
-4. Record the result as a child transaction with `Transactions::createTransaction(null, $parent)` and `saveTransaction()`.
+4. Record the result as a child transaction with `Transactions::createTransaction(null, $parent)` and `saveTransaction()`. Saved transactions are immutable: `saveTransaction()` throws "Transactions cannot be modified." for a transaction that has an `id`.
 5. Return a non-2xx status only when the provider should retry.
 
 ## Stage 6: Tests, CI and docs
@@ -107,7 +107,9 @@ See [references/testing.md](references/testing.md).
 ## Edge cases
 
 - **Subscriptions:** removed from Commerce 6 with no replacement. Delete subscription and plan code, and say so in `UPGRADE.md`. The database tables are kept for a future migration path.
-- **Payment sources:** still supported (`createPaymentSource()`, `deletePaymentSource()`, `PaymentSourceCreatedLaterException`) for gateways that store cards.
+- **Payment sources:** still supported (`createPaymentSource()`, `deletePaymentSource()`, `PaymentSourceCreatedLaterException`) for gateways that store cards. When `createPaymentSource()` throws `PaymentSourceCreatedLaterException`, `PaymentsController::pay()` only sets `savePaymentSource` on payment forms with a `paymentSource` property (unchanged from Commerce 5), so check the installed code before relying on it.
+- **Console commands and CP utilities:** Yii console controllers become Artisan commands registered by the plugin (`php artisan <handle>:<name>`). Old `<handle>/<controller>/<action>` names only resolve as `craft:<handle>/...` aliases. Rebuild a CP utility only if it's still needed; a command plus an admin-only action can replace it.
+- **Gateways with their own tables** (Stripe's customers and payment intents): the plugin's install migration moves to `database/migrations/`, and its own records become Eloquent models.
 - **Dead provider products:** don't build a new integration under the old plugin name without asking. Port it if asked, and recommend retiring it.
 - **Abandoned SDKs:** replace them with a direct client rather than pinning an abandoned package.
 - **Settings that only Omnipay used** (often `sendCartInfo`): remove them, or keep them if the provider still uses the data. Either way, document it.

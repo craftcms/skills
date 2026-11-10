@@ -38,7 +38,7 @@ public function processWebHook(): Response
     // 2. Re-fetch the payment from the provider's API using the stored reference.
     //    Never trust the status in the posted body.
     // 3. Skip it if a successful child transaction of this type already exists.
-    // 4. Record the result:
+    // 4. Record the result as a **new** child transaction. `saveTransaction()` refuses to update a transaction that already has an `id`; if a flow really needs to change a stored row (Stripe updates its redirect transaction's status), it has to update `CraftCms\Commerce\Payment\Models\Transaction` directly, so say why in a comment.
     $child = app(Transactions::class)->createTransaction(null, $transaction);
     $child->type = $transaction->type;
     $child->status = TransactionModel::STATUS_SUCCESS; // or STATUS_FAILED
