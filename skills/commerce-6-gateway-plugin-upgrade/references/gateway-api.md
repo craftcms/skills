@@ -35,7 +35,7 @@ Read `vendor/craftcms/commerce/src/Payment/` alongside this file: `Gateway/Gatew
 | `processWebHook(): craft\web\Response` | `processWebHook(): Illuminate\Http\Response` |
 | `init()` | Constructor or lazy getters; gateways are components created by `Gateways::createGateway()` |
 
-`paymentFormUi()`, `paymentConfirmationFormUi()` and a non-abstract `getPaymentFormHtml()` landed in craftcms/commerce#4442. If the installed Commerce still has an abstract `getPaymentFormHtml()`, that change isn't in your 6.x-dev yet: update Commerce rather than overriding the method.
+`paymentFormUi()`, `paymentConfirmationFormUi()` and a non-abstract `getPaymentFormHtml()` are in Commerce 6.x-dev since 10 November 2026 (craftcms/commerce#4442). If the installed Commerce still has an abstract `getPaymentFormHtml()`, run `composer update craftcms/commerce` rather than overriding the method.
 
 Unchanged in name and meaning: `authorize()`, `capture()`, `completeAuthorize()`, `completePurchase()`, `purchase()`, `refund()`, `createPaymentSource()`, `deletePaymentSource()`, `getPaymentFormModel()`, every `supports*()` method, `availableForUseWithOrder()`, `getTransactionHashFromWebhook()`, `getPaymentTypeOptions()`, `showPaymentFormSubmitButton()`, `cpPaymentsEnabled()` and `getWebhookUrl()`.
 

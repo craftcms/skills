@@ -147,6 +147,6 @@ jobs:
 
 ## Known problems on 6.x-dev
 
-- **Composer refuses to install Craft 6.x-dev** when one of Craft's pinned dependencies has a Packagist security advisory (in November 2026, `mcp/sdk` 0.8.1, advisory PKSA-s52d-n7sx-trsg). CI fails at `composer install` in every job. It needs a fix in `craftcms/cms`. Locally, `COMPOSER_NO_SECURITY_BLOCKING=1 composer update` unblocks it. Don't add the advisory to the plugin's ignore list without the developer's agreement.
+- **Composer refuses to install Craft 6.x-dev** when one of Craft's pinned dependencies has a Packagist security advisory. CI then fails at `composer install` in every job, within seconds. This happened in November 2026 with `mcp/sdk` 0.8.1 (PKSA-s52d-n7sx-trsg) until craftcms/cms moved to `~0.9.0`. It needs a fix in `craftcms/cms`; check whether 6.x already has one and rerun CI. Locally, `COMPOSER_NO_SECURITY_BLOCKING=1 composer update` unblocks it. Don't add the advisory to the plugin's ignore list without the developer's agreement.
 - **Unmerged Commerce fixes.** If a test fails inside Commerce (for example "Array to string conversion" when saving a transaction), check whether Commerce 6.x-dev has the fix yet. Apply an unmerged fix to `vendor/craftcms/commerce` locally to keep going, and list the dependency in the PR.
 - **Manual checks in a browser.** A Testbench workbench host with Commerce and the plugin (installed through a path repository) lets you open the gateway settings page, save it with errors, and render the payment form on a site template. Pest can't show those.
