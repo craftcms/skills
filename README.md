@@ -6,6 +6,26 @@ Skills follow the [Agent Skills](https://agentskills.io/) format and can be inst
 
 ## Available skills
 
+### commerce-6-gateway-plugin-upgrade
+
+Upgrades a Craft Commerce 5 payment gateway plugin to Commerce 6 as a native Craft 6 plugin. Omnipay is deprecated and isn't ported to Commerce 6, so the gateway calls the provider's API directly.
+
+**Use when:**
+
+- Making a Commerce gateway plugin compatible with Commerce 6
+- Removing Omnipay or `craftcms/commerce-omnipay` from a gateway
+
+**Covers:**
+
+- Assessing the gateway with a scan script, and checking the provider's API and SDK are still alive
+- The package, plugin class, gateway registration, and keeping saved gateways loadable
+- Replacing Omnipay with a small HTTP client, response classes, and amounts in minor units
+- Gateway settings with `settingsUi()` and payment forms with `paymentFormUi()`
+- Webhooks: verification, locking, idempotency, and recording child transactions
+- Tests with faked provider responses, CI, `UPGRADE.md`, and the PR
+
+---
+
 ### craft-6-plugin-development
 
 Builds a new Craft 6 (Laravel) plugin step by step, with an Orchestra Testbench workbench inside the plugin repository for manual checks and Pest tests.
@@ -78,6 +98,7 @@ Or install specific skills:
 npx skills add craftcms/skills --skill craft-6-plugin-development
 npx skills add craftcms/skills --skill craft-6-plugin-upgrade
 npx skills add craftcms/skills --skill craft-6-project-upgrade
+npx skills add craftcms/skills --skill commerce-6-gateway-plugin-upgrade
 ```
 
 List available skills:
@@ -110,6 +131,10 @@ Upgrade my Craft 5 site to Craft 6
 
 ```
 Remove the Yii 2 adapter from my plugin
+```
+
+```
+Upgrade this Commerce gateway plugin to Commerce 6 without Omnipay
 ```
 
 ## Skill structure
