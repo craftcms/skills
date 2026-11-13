@@ -24,7 +24,7 @@ Resolved settings come from, in increasing precedence: defaults on the settings 
 - Ship a config stub at `config/<plugin-handle>.php` in the package, and `HasConfig` publishes it. It may return an array or a fluent object (`Demo::config()->apiKey(env('KEY'))`). Fluent methods are yours to write. `Plugin::config()` only *builds*. Read resolved values with `getSettings()`.
 - Environment overrides: `Env::config($class, 'MY_PLUGIN_NS_')`. Wrap rules that must see *parsed* env/alias values in `CraftCms\Cms\Validation\Rules\EnvValueRule`.
 - Only settings defined in a published config file are pushed into `config('craft.plugin-handle.*')`. A key's presence there means "controlled from config".
-- CP settings page: set `$hasCpSettings = true` and implement `settingsForm(FormContext $context = new FormContext): ?Form` (see [fields-widgets-forms.md](fields-widgets-forms.md)). Existing `settingsHtml()` is shimmed by the adapter.
+- CP settings page: set `$hasCpSettings = true` and implement public `settingsUi(UiContext $context = new UiContext): ?Ui` (see [fields-widgets-forms.md](fields-widgets-forms.md)). Existing `settingsHtml()` is shimmed by the adapter.
 - Custom normalization: return your own `FormRequest` class from `getSettingsRequestClass()`. Rules are then evaluated against the whole request, so prefix keys with `settings.`.
 
 ## Validation
@@ -41,7 +41,7 @@ public function getRules(): array
 }
 ```
 
-Alternatives: `rulesClass()` returning a ruleset class, or the `#[Ruleset(MyRules::class)]` attribute. Rulesets come from the `craftcms/laravel-ruleset-validation` package, and extending `CraftCms\Cms\Validation\Ruleset` emits events as rules resolve.
+Alternatives: `ruleset(): string` returning a ruleset class, or the `#[\CraftCms\RulesetValidation\Attributes\Ruleset(MyRules::class)]` attribute. Rulesets come from the `craftcms/laravel-ruleset-validation` package, and extending `CraftCms\Cms\Validation\Ruleset` emits events as rules resolve.
 
 Validatable API: `getRules()`, `errors()`, `getFirstErrors()`, `getMessages()`, `attributeLabels()`, `addModelErrors()`, `validationData()`, `prepareForValidation()`, `validate()`, `passedValidation()`, `failedValidation()`, `afterValidate()`.
 
@@ -52,7 +52,7 @@ Where possible move validation to the input layer:
 - A ruleset injected into the controller: call `$ruleset->validate()` yourself, because it is not a `FormRequest` and does not auto-run.
 - Yii scenarios: supported through the ruleset package (scenarios are strings, centralize as constants or an enum).
 
-Modify other plugins' or Craft's rules by listening to `CraftCms\Cms\Element\Validation\Events\ValidationRulesResolving` and calling `$event->addRule()`.
+Modify other plugins' or Craft's rules by listening to `CraftCms\Cms\Validation\Events\ValidationRulesResolving` and calling `$event->addRule()`.
 
 Field types have two rule sets: `getRules()` (field settings) and `getElementRules()` (content on an element). The adapter wraps legacy `defineRules()` and `getElementValidationRules()`.
 
