@@ -9,19 +9,19 @@ Decide this with the developer in Stage 0. It sets how many stages to run.
 | End state | Adapter | Stages | When it fits |
 | --- | --- | --- | --- |
 | **A. Ship on the adapter** | Required by the released plugin | 1 required, 2 to 5 optional | Large plugin, limited time, or other code that depends on legacy behavior |
-| **B. Adapter-free** | Required **while upgrading**, but not used or required in the release | All, ending with removal in Stage 5 | Small or medium plugin, or a maintainer who wants no Yii dependency |
+| **B. Adapter-free** | Optional temporary scaffolding, absent from the release | 2 to 5 directly, or 1 to 5 if a temporary adapter is chosen | Small or medium plugin, or a maintainer who wants no Yii dependency |
 
-End state B treats the adapter as scaffolding. The plugin runs on Craft 6 after Stage 1, and each later stage replaces something the adapter was covering. Proof of completion:
+End state B can start with a direct native port and skip Stage 1. If the developer chooses a temporary adapter, treat it as scaffolding and remove it when the native implementation is complete. Proof of completion:
 
-- `scripts/scan-craft5.sh` reports no hits on the plugin's native source. A deliberate `legacy/` folder is the only acceptable exception, and it needs an explanation.
+- Every scan finding is resolved or explained. Some patterns also match supported native APIs, so a literal zero is not required and does not prove compatibility.
 - The adapter is gone from `composer.json`, and `composer why craftcms/yii2-adapter` and `composer why yiisoft/yii2` report nothing in a clean host project.
 - Every feature works in that clean project.
 
-Remember that the adapter is a supported destination too. If end state B stalls on something with no native replacement yet (for example custom element types, which the docs don't cover), fall back to A for that release and say so.
+Remember that the adapter is a supported destination too. If end state B stalls on something with no native replacement yet (for example custom element types, which the docs don't cover), explain the limitation and ask whether to change the agreed scope. Do not install an adapter contrary to a native-only request.
 
 ## Choose the namespace
 
-Ask the developer, and don't change a namespace without their agreement. Craft 5 plugins usually use lowercase Yii-style namespaces (`craft\myplugin`); Laravel convention is PascalCase PSR-4 under your own vendor namespace (`MyOrg\MyPlugin`). A plugin does not have to use the `CraftCms` namespace: that one belongs to Craft's own first-party packages.
+Reuse the developer's namespace decision, or ask if it has not been established. Do not change it without agreement. Craft 5 plugins usually use lowercase Yii-style namespaces (`craft\myplugin`); Laravel convention is PascalCase PSR-4 under your own vendor namespace (`MyOrg\MyPlugin`). A plugin does not have to use the `CraftCms` namespace: that one belongs to Craft's own first-party packages.
 
 | Choice | Upside | Downside |
 | --- | --- | --- |
@@ -60,7 +60,7 @@ if (false) {
 4. Legacy services delegate to the new ones inline (`app(New::class)->method()`), with a `@deprecated` docblock naming the replacement.
 5. Keep a work-in-progress changelog and add an entry per stage in the same commit as the move (see [assets/UPGRADE.template.md](../assets/UPGRADE.template.md)).
 
-While the plugin is mid-upgrade, it needs a `craftcms/cms` constraint that resolves (`6.x-dev` until releases exist) and, if the legacy tree is shipped, the adapter in `require` (not `require-dev`), or downstream installs break.
+While the plugin is mid-upgrade, it needs a `craftcms/cms` constraint that resolves (a compatible tag, or `6.x-dev` when an unreleased fix is needed) and, if the legacy tree is shipped, the adapter in `require` (not `require-dev`), or downstream installs break.
 
 If the plugin has its own extension surface (events, service APIs), decide and tell users whether it will be fully upgraded during the alpha, and whether a compatibility layer will ship.
 

@@ -62,7 +62,7 @@ PHP 8.5 is required, so 8.2 to 8.5 features are available (property hooks, `#[Ov
 When the plugin class changes from `craft\base\Plugin` to `CraftCms\Cms\Plugin\Plugin`, the adapter no longer treats the plugin as a Yii module. Upgrade these at the same time:
 
 - **Controllers and action URLs:** Yii controllers are not routed. Upgrade them and register `routes/actions.php` ([http-and-auth.md](http-and-auth.md)).
-- **Settings page:** `settingsHtml()` is not used. Implement `settingsForm()` ([fields-widgets-forms.md](fields-widgets-forms.md)).
+- **Settings page:** `settingsHtml()` is not used. Implement public `settingsUi(UiContext $context = new UiContext): ?Ui` ([fields-widgets-forms.md](fields-widgets-forms.md)).
 - **Settings model:** `createSettings()` must return a `PluginSettings`. It is `protected static function createSettings(): ?PluginSettings` (static, unlike `createSettingsModel()`).
 - **Initialization:** `init()` becomes `boot()`, which accepts injected services, for example `boot(\CraftCms\Cms\Route\Routes $routes)`.
 - **Template root and icon:** `resources/views/` (or `resources/templates/`), `resources/icon.svg`.

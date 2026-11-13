@@ -4,13 +4,13 @@ Source: Craft 6.x extend docs, "Migrations".
 
 ## Rules
 
-- Bring the `Install` migration fully up to date with the expected current schema, then cull the older incremental migrations (as for any major plugin version jump). It must be able to completely remove that schema on uninstall.
+- Bring the `Install` migration up to date with the expected current schema. Cull historical incremental migrations only after verifying the supported upgrade paths. Uninstall must remove the resources owned by the plugin.
 - Once the base class is `CraftCms\Cms\Plugin\Plugin`, the adapter assumes migrations no longer need legacy shims. Only native Laravel migrations will work.
 - Location: top-level `database/migrations/` of the package.
-- A migration named `Install` runs `up()` on install and `down()` on uninstall. Make it a named class in `Install.php` (not an anonymous class), and split `up()` into steps (`createTables()`, `createIndexes()`, `addForeignKeys()`, `insertDefaultData()`).
+- A migration in `Install.php` runs `up()` on install and `down()` on uninstall. The native `Installable::createInstallMigration()` accepts a named class or an object returned from the file, including an anonymous migration. Split larger migrations into steps where useful.
 - `Install::down()` must remove everything the plugin added: drop its tables, delete its field layouts (match both the old and new class names if you aliased classes), and remove its project config (`ProjectConfig::remove('<handle>')`).
 - Dated migrations after `Install` only need `up()`. The Craft 5 incremental migrations are culled, and a plugin that ships a data migration usually updates project config as well (`ProjectConfig::set(...)`) when the data lives there.
-- Bump `$schemaVersion` above the last value the Craft 5 version shipped (for example `3.0.0` after `2.0`), and set `$minVersionRequired` on the plugin class to the latest 5.x version users must upgrade from first. Leaving the default `1.0.0` makes project config from an existing site look newer than the installed plugin.
+- Preserve the existing `$schemaVersion` when the schema and stored data are unchanged. Advance it when a migration is required, and do not reset it below a value already shipped. `$minVersionRequired` refers to the plugin version required before an upgrade, not the Craft version. Set it according to the upgrade paths the plugin actually supports.
 - `up()` and `down()` return nothing. Let exceptions bubble.
 - Craft migration events (`EVENT_AFTER_UP`, `EVENT_AFTER_DOWN`) are replaced by Laravel's migration events.
 

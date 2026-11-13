@@ -27,7 +27,7 @@ Builds a new Craft 6 (Laravel) plugin step by step, with an Orchestra Testbench 
 
 ### craft-6-plugin-upgrade
 
-Upgrades a Craft 5 (Yii 2) plugin or module to Craft 6 (Laravel) in stages: first make it run on 6.x with the Yii 2 adapter, then move each area to native Laravel code and remove the adapter.
+Upgrades a Craft 5 (Yii 2) plugin or module to Craft 6 (Laravel), either directly through a native port or through a staged upgrade using the Yii 2 adapter.
 
 **Use when:**
 

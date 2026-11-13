@@ -2,7 +2,7 @@
 
 Source: Craft 6.x extend docs, "Field Types", "Widgets", "Settings + Config". The "Elements" and "Forms" pages were not fully reviewed. Read `CraftCms\Cms\Ui` in the 6.x source before writing a non-trivial form.
 
-**API names changed during the alpha.** Current 6.x calls the UI builder `CraftCms\Cms\Ui\{Ui,UiContext}`, with `settingsUi(UiContext $context = new UiContext): ?Ui`, nodes in `CraftCms\Cms\Ui\Nodes\*` and controls in `CraftCms\Cms\Ui\Controls\*`. 6.0.0-alpha.20 and the published docs still use the older names: `CraftCms\Cms\Form\{Form,FormContext}`, `settingsForm()` and `formControl()`. Code written against the old names doesn't load on current 6.x. Check the installed package (`ls vendor/craftcms/cms/src/Ui`) and lock `craftcms/cms` to `6.x-dev` while the tagged alpha lacks `Ui`.
+**API names changed during the alpha.** Current 6.x calls the UI builder `CraftCms\Cms\Ui\{Ui,UiContext}`, with `settingsUi(UiContext $context = new UiContext): ?Ui`, nodes in `CraftCms\Cms\Ui\Nodes\*` and controls in `CraftCms\Cms\Ui\Controls\*`. 6.0.0-alpha.20 and the published docs still use the older names: `CraftCms\Cms\Form\{Form,FormContext}`, `settingsForm()` and `formControl()`. Code written against the old names doesn't load on current 6.x. Check the installed package (`ls vendor/craftcms/cms/src/Ui`) before changing constraints. `6.0.0-beta.1` already includes `Ui`, so a development branch is not required for that API.
 
 ## Field types
 

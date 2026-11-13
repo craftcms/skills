@@ -2,9 +2,9 @@
 
 These recipes were used to upgrade a real plugin (`craftcms/guest-entries`) against `craftcms/cms` 6.0.0-alpha.20. Adapt names and URLs. They assume DDEV, as the Craft 6 install docs do; without DDEV, run the same `composer` and `php artisan` commands directly.
 
-## 0. Get the latest Craft 6, not the last alpha tag
+## 0. Verify the target Craft version
 
-With `prefer-stable`, both `craftcms/craft:^6.0.0-alpha.1` and a plugin's `craftcms/cms:^6.0.0` resolve to the newest **tag**, which lacks the `Ui` builder and many adapter fixes (and its `PluginTestCase` can't install Craft). Use `6.x-dev`:
+The original alpha.20 recipes needed `6.x-dev` for unreleased UI and adapter fixes. This is not a requirement for every upgrade: `6.0.0-beta.1` already includes `Ui`. Start with the agreed compatible release and check its installed source. If a missing API or confirmed bug requires an unreleased fix, agree that dependency change before using the following development-branch recipe:
 
 ```bash
 composer create-project craftcms/craft:6.x-dev my-host --no-scripts --no-install
@@ -14,10 +14,10 @@ composer require craftcms/cms:6.x-dev -W
 composer update craftcms/cms --with craftcms/cms:6.x-dev -W
 ```
 
-- Installing the adapter in a host fails until Composer may run Yii's plugin: `composer config --no-plugins allow-plugins.yiisoft/yii2-composer true`.
+- If the selected strategy installs the adapter, Composer must be allowed to run Yii's plugin: `composer config --no-plugins allow-plugins.yiisoft/yii2-composer true`.
 - Without a GitHub token, Composer's zip downloads can stall for many minutes: `composer config -g github-oauth.github.com "$(gh auth token)"`.
 - A path repository on a branch is required as `<branch>-dev` (`4.x-dev`), not `dev-<branch>`.
-- 6.x moves daily. Before reporting results, update the host and rerun the checks on the final commit.
+- Record the exact installed Craft version and source commit with the results. Re-run checks after dependency changes, but do not update the host outside the agreed scope just to finish a report.
 - After switching a host between adapter and native with `--no-scripts`, delete `bootstrap/cache/packages.php` and `services.php` and run `php artisan package:discover`, or Laravel looks for providers that are gone.
 
 ## 1. Create a clean Craft 6 host
@@ -26,8 +26,8 @@ composer update craftcms/cms --with craftcms/cms:6.x-dev -W
 mkdir my-host && cd my-host
 ddev config --project-type=laravel --docroot=public --php-version=8.5 --database=mysql:8.4
 ddev start
-ddev composer create-project "craftcms/craft:6.x-dev" --no-interaction
-ddev composer require craftcms/cms:6.x-dev -W   # see section 0
+ddev composer create-project "craftcms/craft:^6.0.0-beta.1" --no-interaction
+# Use an agreed version or development branch if needed, as described in section 0.
 ```
 
 Without a terminal, `create-project` installs everything and then fails at its last step (`artisan craft:install`, which is interactive). Finish the install yourself:

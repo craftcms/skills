@@ -1,6 +1,6 @@
 ---
 name: craft-6-plugin-upgrade
-description: Walks a developer and their agent through upgrading a Craft CMS 5 (Yii 2) plugin or module to Craft 6 (Laravel) in stages - assess, make it run on 6.x with the craftcms/yii2-adapter, then migrate each area to native Laravel and remove the adapter. Use when asked to upgrade or make a Craft plugin or module compatible with Craft 6, Laravel, or the Yii 2 adapter.
+description: "Walks a developer and their agent through upgrading a Craft CMS 5 (Yii 2) plugin or module to Craft 6 (Laravel) in stages: assess, choose an adapter-based compatibility release or a direct native port, and migrate the required areas to Laravel. Use when asked to upgrade or make a Craft plugin or module compatible with Craft 6, Laravel, or the Yii 2 adapter."
 license: MIT
 compatibility: Requires ripgrep (rg) for scripts/scan-craft5.sh. Maintainers refreshing the docs snapshot also need PHP 8.1+ and git.
 ---
@@ -9,29 +9,29 @@ compatibility: Requires ripgrep (rg) for scripts/scan-craft5.sh. Maintainers ref
 
 Craft 6 is a Laravel package. Craft is a tenant in a Laravel app, and so are plugins. Plugins are Laravel service providers, and "modules" become ordinary service providers in the project's `App` namespace.
 
-This skill walks the developer and the agent through the upgrade **in stages**. Each stage has a goal, steps, exit criteria and a checkpoint. Do the stages in order, finish one before starting the next, and stop at each checkpoint to summarize and confirm with the developer.
+This skill walks the developer and the agent through the upgrade **in stages**. Each stage has a goal, steps, exit criteria and a checkpoint. Use the stages for the selected strategy, and summarize progress at checkpoints. Reuse decisions and authorization already given by the developer. Pause when a decision or action needs approval, rather than asking again at every stage.
 
-Only Stage 1 is required. Stages 2 to 5 eject the Yii 2 adapter and can be done gradually, or never: shipping on the adapter is an officially supported way to release a 6.x-compatible plugin.
+Stage 1 is for the adapter-based route. Stages 2 to 5 cover a native port and can follow Stage 1 or start directly without installing the adapter. Shipping on the adapter is also an officially supported way to release a 6.x-compatible plugin.
 
 Agree an **end state** with the developer in Stage 0, because it decides how far to go:
 
 - **End state A, ship on the adapter:** the adapter stays a dependency of the released plugin. Stage 1 is enough, and later stages are optional clean-up.
-- **End state B, adapter-free:** the adapter is required while upgrading, so the plugin runs on Craft 6 after Stage 1, but it is **not used and not required by the end**. Run all stages. Stage 5 removes it and proves the plugin works without it.
+- **End state B, adapter-free:** port directly through Stages 2 to 5, or use the adapter temporarily through Stage 1 if the developer chooses that approach. The finished plugin must work without the adapter. Do not install it when the developer has requested a direct native port.
 
-Treat the adapter as scaffolding in end state B. It stays installed so the plugin keeps running, but don't build anything new on it. Each stage should reduce what depends on it, and `scripts/scan-craft5.sh` should show fewer hits as the upgrade progresses.
+If end state B uses the adapter temporarily, treat it as scaffolding and do not build new code on it. Each stage should reduce the legacy dependencies. Review the scan findings as the upgrade progresses, accounting for intentional aliases and native APIs that share names with legacy ones.
 
-**Prompt the developer to remove it at the end.** In end state B, close every checkpoint with a one-line reminder that the adapter is still installed and will be removed in Stage 5. When Stage 5 is reached, ask the developer to confirm before editing `composer.json`, and offer to run the removal checks. If the developer stops early, say plainly that the adapter is still required and what still depends on it.
+**Track the adapter accurately.** If it is installed temporarily, report the remaining dependencies and remove it once they are gone, within the agreed scope. Do not request another confirmation when the developer has already authorized its removal. If work stops early, say whether the adapter is still required and what depends on it.
 
 ## Ground rules
 
 - Craft 6 was in alpha when this skill was written, so extension APIs may change. The source of truth is the Craft 6.x extend docs (https://craftcms.com/docs/6.x/extend/) and the installed `craftcms/cms` 6.x package.
-- Test against the latest `6.x-dev`, not the newest alpha tag: many adapter bugs found during real upgrades were fixed after the last tag ([references/testing.md](references/testing.md)).
+- Verify the installed Craft version and source before choosing a target. Tagged releases can include the required APIs. Use `6.x-dev` only when the upgrade needs an unreleased fix and the developer agrees to that dependency change ([references/testing.md](references/testing.md)).
 - When the adapter or Craft itself is at fault, tell the developer what you found and the evidence, so they can report it to Craft (https://github.com/craftcms/cms/issues). If the fix is small and only touches the adapter (the `yii2-adapter/` folder of `craftcms/cms`), suggest they open a pull request for it, and offer to draft it. Work around it in the plugin only where needed, gate the workaround on the Craft version, and note when to remove it.
 - A verbatim snapshot of the 6.x extension docs lives in [references/docs/](references/docs/INDEX.md). Check its stamp (source commit and date) in `INDEX.md`. Maintainers refresh it with `php scripts/sync-docs.php`. Do not run that script during an upgrade, because it rewrites `references/docs/` and uses the network. The hand-written references below are a workflow-oriented summary, so when they and the snapshot disagree, trust the snapshot, and when the snapshot and installed `craftcms/cms` source disagree, trust the source.
 - Never guess an API name, namespace or signature. If the references here do not cover it, look it up in the snapshot, the source or the docs. Say plainly when something is unverified.
 - The deprecation notes (`@deprecated`, `#[Deprecated]`) on the adapter's legacy classes point to the replacement. Use them.
 - Requirements: PHP 8.5, and Craft 5 on its latest 5.x release first. Projects cannot jump from Craft 4 or earlier.
-- Make one change set at a time, keep the plugin's tests passing, and commit between stages if the project uses git. Ask before deleting files or restructuring.
+- Make one change set at a time and validate within the requested scope. Follow the developer's instructions for tests, commits, deletions, and restructuring. Do not expand an authorized port into an unrelated refactor.
 - **Keep an `UPGRADE.md` for the plugin's users.** Whenever the upgrade removes, renames or changes something other code may depend on (events, classes and namespaces, settings and config, routes and action URLs, Twig variables, permissions, requirements), add an entry with before and after code as you make the change. Start it from [assets/UPGRADE.template.md](assets/UPGRADE.template.md) at the first such change, and finish it in Stage 5. Only record changes that really happened, and check every new name against the installed source.
 - Explain *why* as you go. The developer is learning Craft 6 conventions, not just receiving a diff.
 
@@ -49,16 +49,16 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
    - Plugin with custom element types or element queries: a constraint bump is not enough for the adapter route, because `beforePrepare()` is never called on Craft 6 ([required-changes.md](references/required-changes.md#what-breaks-on-the-adapter)). Plan the query rewrite in Stage 1, or go native.
    - Plugin that calls core internals the adapter doesn't provide (`craft\migrations\Install`, `craft\helpers\MigrationHelper`, the DB command map): the adapter can't make it work. Disable the feature on Craft 6 in the adapter release and rebuild it natively.
    - Scope: ask whether any feature will be removed rather than upgraded. If the legacy tree ships, the adapter must be in `require`, not `require-dev`.
-4. **Ask the developer about the namespace, and get an explicit answer.** Craft 5 plugins usually use a Yii-style lowercase namespace (`craft\myplugin`). Laravel and Craft 6 convention is a PascalCase PSR-4 vendor namespace under the developer's own vendor name (for example `MyOrg\MyPlugin`; the `CraftCms` namespace is for Craft's first-party packages, and isn't needed). Explain the trade-off and let them choose:
+4. **Establish the namespace decision, reusing an explicit choice already provided.** Craft 5 plugins usually use a Yii-style lowercase namespace (`craft\myplugin`). Laravel and Craft 6 convention is a PascalCase PSR-4 vendor namespace under the developer's own vendor name (for example `MyOrg\MyPlugin`; the `CraftCms` namespace is for Craft's first-party packages, and isn't needed). Explain the trade-off and let them choose:
    - **Move to the conventional namespace:** a breaking change for anyone referencing the old class names (record it in `UPGRADE.md`), but it makes the upgrade easy to track. New or upgraded classes live in the new namespace and anything still in the old one is not upgraded yet, so the scan, `git grep` and `composer.json` autoload entries show progress at a glance.
    - **Keep the old namespace:** fewer breaking changes, but upgraded and not-yet-upgraded code look the same.
    The default recommendation is the conventional namespace **plus moving most classes into Laravel-style folders** (`Http/Controllers`, `Http/Requests`, `Events`, `Listeners`, `Data`, `Models`, `Jobs`, ...: [plugin-class.md](references/plugin-class.md#class-organization-the-default-move-most-things-into-laravel-style-namespaces)). Record the decision in the plan. Don't change a namespace without the developer's agreement.
 5. Confirm the Craft 5 side is clean: latest 5.x, and no outstanding deprecation warnings. The scan cannot check this. Install the plugin in a Craft 5 project, exercise its features, then review Utilities > Deprecation Warnings. If that isn't possible, say so and carry on.
 
-**Exit:** a short written plan listing the areas found, the end state (A or B), the namespace decision and the target stage (1 only, or through 5).
-**Checkpoint:** present the plan and get agreement.
+**Exit:** a short written plan listing the areas found, the end state (A or B), the namespace decision and the target stages (1 only, 2 to 5, or 1 to 5).
+**Checkpoint:** present the plan and resolve any strategy or scope decisions the developer has not already made.
 
-## Stage 1: Make it run on Craft 6 with the adapter (required)
+## Stage 1: Make it run on Craft 6 with the adapter (adapter route only)
 
 **Goal:** the plugin installs on Craft 6.x and its features work, with the adapter doing the heavy lifting. This stage is adapter-only: **keep the legacy base class (`craft\base\Plugin`)**. The switch to the native base class happens in Stage 2, because it stops the adapter routing the plugin's Yii controllers, so the controllers must be upgraded at the same time.
 **References:** [references/required-changes.md](references/required-changes.md), [references/testing.md](references/testing.md)
@@ -72,7 +72,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 5. Tag a release if the developer wants to publish. This stops here for end state A.
 
 **Exit:** `craft:plugin:install` succeeds, the action URLs respond correctly, the settings page renders and saves.
-**Checkpoint:** report what changed, what was tested, and the list of deprecation warnings still being raised. These drive the next stages. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue to Stage 2.
+**Checkpoint:** report what changed, what was tested, and the list of deprecation warnings still being raised. These drive the next stages. If using a temporary adapter for end state B, report that it remains installed. Continue within the agreed scope.
 
 ## Stage 2: Switch to the native plugin class, and upgrade what that breaks
 
@@ -80,13 +80,13 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 **References:** [plugin-class.md](references/plugin-class.md), [http-and-auth.md](references/http-and-auth.md), [models-and-validation.md](references/models-and-validation.md), [fields-widgets-forms.md](references/fields-widgets-forms.md), [database.md](references/database.md)
 
 1. Change the base class to `CraftCms\Cms\Plugin\Plugin`. Move `init()` logic into `boot()` (which supports dependency injection). Replace `createSettingsModel()` with `protected static function createSettings(): ?PluginSettings` (it is **static**).
-2. Settings: make the settings class extend `PluginSettings`, use `getRules()` instead of `defineRules()`, and give config values real public properties (a property hook can normalize assignments). The CP settings page uses `settingsUi(UiContext $context = new UiContext): ?Ui` (the UI builder, `settingsForm()` on 6.0.0-alpha.20), replacing the Twig `settingsHtml()` template. Craft never calls the old `createSettingsModel()` or `settingsHtml()`, and doesn't say so: settings come back `null`. Bind the settings class in `register()`, not `boot()` ([services-and-di.md](references/services-and-di.md#dont-use-static-lookups-let-the-container-hand-things-over)). Add a config stub only if the plugin wants one.
+2. Settings: make the settings class extend `PluginSettings`, use `getRules()` instead of `defineRules()`, and give config values real public properties (a property hook can normalize assignments). The CP settings page uses `settingsUi(UiContext $context = new UiContext): ?Ui` (the UI builder, `settingsForm()` on 6.0.0-alpha.20), replacing the Twig `settingsHtml()` template. Craft never calls the old `createSettingsModel()` or `settingsHtml()`, and doesn't say so: settings come back `null`. Bind the settings class in `register()`, not `boot()` ([services-and-di.md](references/services-and-di.md#prefer-injection-for-runtime-dependencies)). Add a config stub only if the plugin wants one.
 3. Controllers: Yii controllers are no longer routed. Upgrade each to a plain (usually invokable) class using `RespondsWithFlash`, and route it from `routes/actions.php` so existing `actions/<handle>/<action>` URLs keep working (Craft adds the `actions/<handle>/` prefix, so write `Route::post('save', ...)`, not `'<handle>/save'`) (`routes/web.php` and `cp.php` for new routes). Put `auth` first on every non-anonymous route, because `routes/actions.php` is also reachable by guests. Replace `Craft::$app` calls and Yii request and response helpers as you touch each class ([services-and-di.md](references/services-and-di.md), [http-and-auth.md](references/http-and-auth.md)). If the controller had `$enableCsrfValidation = false` or a setting for it, exempt the route in `boot()` with `PreventRequestForgery::except()`.
 4. Layout: icon to `resources/`, routes to `routes/`, translations to `lang/`, templates to `resources/views/` (or `resources/templates/`). Cull old incremental migrations and convert the rest to `database/migrations/` (see [database.md](references/database.md)).
 5. If the developer chose a new namespace in Stage 0, add it to `composer.json` `autoload.psr-4` next to the old one and move **most classes** into the Laravel-style layout as you upgrade each one (controllers in `Http/Controllers`, request validation in `Http/Requests`, events in `Events`, handlers in `Listeners`, data objects in `Data`, Eloquent models in `Models`, jobs in `Jobs`, commands in `Console/Commands`, settings next to the plugin class). Leave nothing behind in Yii-style folders. Use `git mv` so history follows. Remove the old autoload root when nothing uses it, update `extra.class` if the plugin class moved, and record every renamed class in `UPGRADE.md`.
 
-**Exit:** with the adapter still installed, install, uninstall, reinstall, settings save, every action URL and any front-end form all work on the native class.
-**Checkpoint:** summarize. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue.
+**Exit:** the native class, settings save, action URLs, and front-end forms work in the selected environment. Exercise install, uninstall, and reinstall only in a disposable host with no data to preserve. A direct native port keeps the adapter absent.
+**Checkpoint:** summarize what works, what remains, and whether an adapter is still installed. Continue within the agreed scope.
 
 ## Stage 3: Logic, services, events and validation
 
@@ -102,7 +102,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 7. Test the events: register throwaway listeners in the host, exercise each path (success, veto, spam, failure) and check each fires ([references/testing.md](references/testing.md)).
 
 **Exit:** no use of `Craft::$app`, `Yii::$app` or Yii events remains in the plugin's own logic, the events behave as documented in `UPGRADE.md`, and tests pass.
-**Checkpoint:** summarize. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue.
+**Checkpoint:** summarize what works, what remains, and whether an adapter is still installed. Continue within the agreed scope.
 
 ## Stage 4: Remaining surfaces: templates, console, queue and mail
 
@@ -118,7 +118,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 7. Assets: `$scripts`/`$styles`/`$vite` in place of asset bundles. CP pages, utilities, field inputs and element editor additions are Vue components now ([templates-and-twig.md](references/templates-and-twig.md#control-panel-front-end)).
 
 **Exit:** the plugin's templates, CLI, queue and mail paths all work, and the README and `UPGRADE.md` describe the behavior that was actually tested.
-**Checkpoint:** summarize. In end state B, remind the developer that the adapter is still installed and will be removed in Stage 5. Ask whether to continue.
+**Checkpoint:** summarize what works, what remains, and whether an adapter is still installed. Continue within the agreed scope.
 
 ## Stage 5: Components, fields, widgets, then remove the adapter
 
@@ -128,11 +128,11 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 1. Fields: `settingsUi()` and `uiControl()` (`settingsForm()` and `formControl()` on 6.0.0-alpha.20) in place of `getSettingsHtml()`/`getInputHtml()`, `modifyQuery()` in place of `queryCondition()`, and `getRules()`/`getElementRules()`. If the field class name changed, add a migration that renames the stored type ([fields-widgets-forms.md](references/fields-widgets-forms.md#field-types)).
 2. Widgets and utilities: new base classes and registration. Element types have no upgrade guide yet, so read the source and tell the developer.
 3. Legacy layer: decide what, if anything, to keep for downstream users (`class_alias()`, a `legacy/` autoload root, `Deprecator::log()`), and update `composer.json` autoloading for old and new namespaces. If the developer chose a clean break instead, finish `UPGRADE.md` now: every removed or renamed event, class, setting, route and variable should have a before and after entry, and the requirements and upgrade steps sections should be filled in.
-4. End state B: ask the developer to confirm, then remove `craftcms/yii2-adapter` from the plugin's `composer.json`. In a clean host project that has neither the adapter nor other plugins, test every feature. Confirm nothing pulls Yii in: `composer show craftcms/yii2-adapter` and `composer show yiisoft/yii2` should both report that the package is not installed. (Small `yiisoft/*` utility libraries such as `yiisoft/arrays` are dependencies of Craft 6 itself and are expected.)
-5. Re-run `scripts/scan-craft5.sh` on the plugin's native source. For end state B it should report no hits. Any intentional legacy-compatibility folder (for example `legacy/`) is the only expected exception, and it needs an explanation. With the adapter removed, static analysis also catches leftovers: PHPStan reports a legacy `craft\` class as unknown. (A Pest `arch()` test can't: it doesn't see classes that aren't installed, so it passes anyway.)
+4. End state B: remove any temporary `craftcms/yii2-adapter` dependency within the agreed scope, or confirm that it was never installed. In a clean host project that has neither the adapter nor other plugins, test every feature. Confirm nothing pulls Yii in: `composer show craftcms/yii2-adapter` and `composer show yiisoft/yii2` should both report that the package is not installed. (Small `yiisoft/*` utility libraries such as `yiisoft/arrays` are dependencies of Craft 6 itself and are expected.)
+5. Re-run `scripts/scan-craft5.sh` on the plugin's native source. Review each remaining finding rather than requiring a literal zero: the scan also matches native rendering, schema, macro, and static-access APIs. Explain intentional compatibility aliases and distinguish them from unresolved legacy dependencies. With the adapter removed, static analysis also catches leftovers: PHPStan reports a legacy `craft\` class as unknown. (A Pest `arch()` test can't: it doesn't see classes that aren't installed, so it passes anyway.)
 6. Run static analysis and the code style tool ([testing.md](references/testing.md#tooling-and-ci)).
 
-**Exit:** for end state B, the plugin works with the adapter absent, with no Yii classes pulled in, and the scan is clean apart from explained exceptions.
+**Exit:** for end state B, the plugin works with the adapter absent, with neither Yii nor the adapter installed, and all scan findings are resolved or explained.
 **Checkpoint:** final report listing what is native, anything still relying on the adapter or legacy shims, anything unverified, the finished `UPGRADE.md`, and release notes the developer should write (new major version, PHP 8.5, breaking changes for downstream users).
 
 ## Reference map
@@ -156,7 +156,7 @@ Treat the adapter as scaffolding in end state B. It stays installed so the plugi
 
 - A strict horizontal upgrade first, with restructuring afterwards.
 - Initialization belongs in `boot()`: `register()` runs before other providers exist, so it is only for early Laravel wiring (CSRF exemptions, rate limiters, Laravel event listeners).
-- Never instantiate services directly, and don't use static lookups such as `Plugin::getInstance()` or `Craft::$app` in upgraded code. Inject what you need (`Settings $settings`, `Sections $sections`) or resolve it with `app(ClassName::class)`. Bind the plugin's settings class in `register()` so classes can type-hint it: Craft loads the plugin's route files before `boot()` runs ([services-and-di.md](references/services-and-di.md)).
+- Resolve services through the container or dependency injection instead of constructing them directly or chaining plugin service getters. `Plugin::getInstance()` remains a supported native plugin API, but injection is preferable for runtime dependencies. Replace legacy `Craft::$app` access. Inject what you need (`Settings $settings`, `Sections $sections`) or resolve it with `app(ClassName::class)`. Bind the plugin's settings class in `register()` so classes can type-hint it: Craft loads the plugin's route files before `boot()` runs ([services-and-di.md](references/services-and-di.md)).
 - Keep old classes loadable where the database, project config or other code may reference them.
 - Do not use the adapter's own deprecation API in new code. Use `CraftCms\Cms\Support\Facades\Deprecator::log()`.
 - Do not publish the plugin's regular migrations into the app, because they would run twice.
