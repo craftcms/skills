@@ -113,7 +113,7 @@ What the Craft terms in control panel strings mean, and the words Craft's own tr
 - **da:** Slug "Slug" (not "Snegl"), Handle "Handle" (not "Kodetagget"), Site "Site" ("Side" is Page), Feed "Feed" ("Tilføre" is a verb), Disabled "Deaktiveret", Options "Valgmuligheder" ("Indstillinger" is Settings).
 - **de/de-CH:** Global Set "globales Set", Options "Optionen" ("Einstellungen" is Settings), Tax Category "Steuerkategorie" ("Steuerklasse" is an income tax bracket). Actions "Aktionen" is right for actions; Commerce's Sale needs a different word.
 - **el:** Global Set "Καθολικό σύνολο", Globals Καθολικ- ("Γενικά" is General).
-- **es:** ID "ID", Settings "Ajustes" ("Opciones" is Options).
+- **es:** ID "ID", Settings "Ajustes" ("Opciones" is Options). Commerce Adjustments "ajustes de precio", since "Ajustes" is Settings.
 - **fa:** Passkey کلید عبور (رمز عبور is Password), Load بارگذاری (not لود).
 - **fr:** Slug "Slug"; Handle "Identificateur". **fr-CA:** search indexes "index de recherche" (not "répertoires").
 - **he:** Entry רשומה (not כניסה), Author מחבר (יוצר is Creator), License רישיון, Field Layout פריסת שדות, Draft טיוטה (not טיוטא), Hostname שם המארח.
@@ -140,4 +140,4 @@ Most `{type}` sentences in Craft's translations either select over Craft's built
 
 ## Not yet confirmed
 
-Native speakers haven't checked these: hr "Dostupno", nl "Vermelding", is "Slóðarheiti", "annálar", "Í loftinu", "Kerfisheiti", "víðvær" and "vistuð útgáfa", tr "Dosya" (WordPress uses "Ortam" for media), he גרסה שמורה, ko 아이템, it "Genitore", sv "Mediefil", cs/sk "soubor"/"súbor" for Asset, pt "Recurso" (also Resources), and ky "Таштандыда". fr "En ligne" and pl/sk "Online" also translate the system-status toggle "Online", which means the same thing. Raise doubts rather than reverting them silently.
+Native speakers haven't checked these: hr "Dostupno", nl "Vermelding", is "Slóðarheiti", "annálar", "Í loftinu", "Kerfisheiti", "víðvær" and "vistuð útgáfa", tr "Dosya" (WordPress uses "Ortam" for media), he גרסה שמורה, ko 아이템, it "Genitore", sv "Mediefil", cs/sk "soubor"/"súbor" for Asset, pt "Recurso" (also Resources), ky "Таштандыда", and Commerce es Adjustments "ajustes de precio". fr "En ligne" and pl/sk "Online" also translate the system-status toggle "Online", which means the same thing. Raise doubts rather than reverting them silently.
