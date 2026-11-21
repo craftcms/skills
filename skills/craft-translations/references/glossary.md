@@ -132,7 +132,7 @@ What the Craft terms in control panel strings mean, and the words Craft's own tr
 - **sv:** Handle "Handle" ("Hantera" is the verb; "handtag" is a door handle), Asset "Mediefil" ("Tillgång" is a financial asset), Entry Type "Inläggstyp".
 - **th:** Author ผู้เขียน (ผู้สร้าง is close to Creator), logs บันทึกระบบ (บันทึก is Save), Global ส่วนกลาง (ทั่วโลก is worldwide), Landscape/Portrait แนวนอน/แนวตั้ง.
 - **tr:** Global Set "Global küme" ("Genel" is General and Public; "Genel Etiket Kümesi" meant global tag set), Parent "Üst öge", Entry "Kayıt" ("Giriş" is Login), Asset "Dosya", Type "Tür", Email "E-posta", Create "Oluştur", Time (of day) "Saat" ("Süre" is a duration).
-- **zh:** Slug 别名 (not 链接), Global Set 全局集 (全局设置 is Global Settings), Parent 父级 (not 根源), Active 已激活 (活动 is Event), Pending 待定 (暂停 is Paused), "press" 按 for key shortcuts (单击 is a click), Invoice 账单 (发票 is a tax invoice).
+- **zh:** Slug 别名 (not 链接), Global Set 全局集 (全局设置 is Global Settings), Parent 父级 (not 根源), Active 已激活 (活动 is Event), Pending 待处理 (待定 means "to be decided"; 暂停 is Paused), "press" 按 for key shortcuts (单击 is a click), Invoice 账单 (发票 is a tax invoice).
 
 ## "{type}" strings
 
