@@ -80,14 +80,26 @@ Translations across the Craft ecosystem should use the same words for the same t
 
 ## Quotes and apostrophes
 
-Follow the majority style of the language's `app.php`. Some files mix styles; their majorities in Craft 5 and 6:
+Use each language's style below, which is the majority in Craft's own `app.php` files. Some files also have a minority style, such as “…” in el, sv, and fr-CA, or plain ASCII "…"; use the majority for new strings, and leave existing strings alone unless you're fixing them anyway.
 
-- Straight `'` (written `\'` in PHP): fr, it, tr, uk, nl, da. In uk the apostrophe is a letter (ім'я), not punctuation.
-- Curly ’: fr-CA, cy.
+| Quotation marks | Languages |
+|---|---|
+| “…” | ar, cy, da, en-GB, es, he, id, it, ko, nl, pt, th, tr, zh |
+| „…“ | cs, de, hr, is, sk |
+| „…” | hu, pl |
+| «…» | de-CH, el, fa, fr, fr-CA, ky, nb, nn, ru, uk |
+| ”…” | sv |
+| 「…」 | ja |
+
+fr and fr-CA put a space inside « … »; prefer a non-breaking space in fr.
+
+Apostrophes:
+
+- Straight `'` (written `\'` in PHP): da, fr, he, it, nl, tr, uk. In uk the apostrophe is a letter (ім'я), not punctuation.
+- Curly ’: cy, en-GB, fr-CA.
+- Languages not listed rarely need one; use ’.
 - he writes acronyms with an ASCII `"` (דוא"ל, מע"מ), never ״.
 - Never use ‘ (U+2018) as an apostrophe.
-
-For quotation marks around names, use the file's majority style for that pattern, such as “{name}” or « {name} ».
 
 In ICU, a straight `'` directly before `{` or `}` starts a quoted section and swallows the placeholder, so use ’ next to placeholders even in straight-apostrophe files. A `'` between letters ("URL's") is safe.
 
