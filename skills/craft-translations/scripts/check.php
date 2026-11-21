@@ -11,7 +11,9 @@
 // whose {type} values are translated. Those branches never match, unless
 // the placeholder receives a raw value such as an API enum. It also warns
 // about plurals that lost the source's explicit selectors (=1), empty
-// plural category branches (one {}), and ‘ used as an apostrophe. Warnings don't change the exit code.
+// plural category branches (one {}), ‘ used as an apostrophe, and straight
+// quotes or apostrophes outside code, HTML tags, and inch or foot marks.
+// Warnings don't change the exit code.
 //
 // Usage: php check.php <translations-dir> [--missing] [--clashes]
 // Needs the intl and mbstring extensions. Exits with 1 when it finds a problem. --missing
@@ -42,6 +44,19 @@ function icuArgs(string $s, bool $all = false, int &$i = 0, bool $nested = false
     $len = strlen($s);
     while ($i < $len) {
         $c = $s[$i++];
+        // ICU apostrophe quoting: '' prints ', and a ' before { or } quotes
+        // text up to the next ', so a placeholder inside it prints literally.
+        if ($c === "'" && $i < $len && $s[$i] === "'") {
+            $i++;
+            continue;
+        }
+        if ($c === "'" && $i < $len && ($s[$i] === '{' || $s[$i] === '}')) {
+            while ($i < $len && !($s[$i] === "'" && ($s[$i + 1] ?? '') !== "'")) {
+                $i += $s[$i] === "'" ? 2 : 1;
+            }
+            $i++;
+            continue;
+        }
         if ($c === '}' && $nested) {
             return $args;
         }
@@ -172,6 +187,10 @@ foreach ($sources as $source) {
             }
             if (preg_match('/\p{L}‘/u', $value)) {
                 echo "  warning: ‘ used as an apostrophe: $key\n";
+            }
+            // Code spans, HTML tags, and inch or foot marks keep straight quotes.
+            if (preg_match('/[\'"]/', preg_replace(['/`[^`]*`/', '/<[^>]*>/', '/(?<=\d)[\'"]/'], '', $value))) {
+                echo "  warning: straight quote or apostrophe: $key\n";
             }
             if ($listClashes) {
                 $byValue[$lang][mb_strtolower($value)][] = $key;
