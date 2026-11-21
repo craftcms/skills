@@ -2,7 +2,7 @@
 name: craft-translations
 description: Translates Craft CMS and Craft plugin control panel strings (static message translations in `translations/<lang>/<category>.php`) and keeps terms consistent with Craft's own translations. Use when adding or changing translatable strings, translating a plugin or module into other languages, fixing or standardizing a translated term, or reviewing translation quality.
 license: MIT
-compatibility: Craft CMS 4, 5, and 6, and their plugins and modules. The check script needs PHP with the intl extension.
+compatibility: Craft CMS 4, 5, and 6, and their plugins and modules. The check script needs PHP with the intl and mbstring extensions, which Craft requires anyway.
 ---
 
 # Translating Craft strings

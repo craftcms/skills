@@ -13,7 +13,7 @@
 // category, such as Craft's own app.php.
 //
 // Usage: php check.php <translations-dir> [--missing]
-// Needs the intl extension. Exits with 1 when it finds a problem. --missing
+// Needs the intl and mbstring extensions. Exits with 1 when it finds a problem. --missing
 // also lists untranslated keys.
 
 $dir = rtrim($argv[1] ?? '', '/');
