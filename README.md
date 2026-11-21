@@ -62,6 +62,26 @@ Upgrades a Craft 5 project (site) to Craft 6 in stages: preflight on 5.x, run th
 - Database migrations and verification
 - Clearing deprecations and the optional adapter-free path
 
+---
+
+### craft-translations
+
+Translates Craft CMS and plugin control panel strings, using the same terms as Craft's own translations so the whole ecosystem reads consistently.
+
+**Use when:**
+
+- Adding or changing translatable strings in Craft or a plugin
+- Translating a plugin or module into other languages
+- Fixing or standardizing a translated term, or reviewing translation quality
+
+**Covers:**
+
+- Where translation files live, and message categories
+- Choosing terms by meaning, starting from Craft's own translations
+- ICU placeholders, plurals, and selects on values such as `{type}`
+- A check script for missing keys, invalid ICU messages, dropped placeholders, and select keys that never match
+- How Craft's own repos sync translations across branches
+
 Craft 6 is still pre-release. When a skill and Craft disagree, the skills trust the installed Craft source first, then the published 6.x docs.
 
 ## Installation
@@ -78,6 +98,7 @@ Or install specific skills:
 npx skills add craftcms/skills --skill craft-6-plugin-development
 npx skills add craftcms/skills --skill craft-6-plugin-upgrade
 npx skills add craftcms/skills --skill craft-6-project-upgrade
+npx skills add craftcms/skills --skill craft-translations
 ```
 
 List available skills:
