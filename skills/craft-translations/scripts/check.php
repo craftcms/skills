@@ -8,19 +8,24 @@
 //
 // It also warns about select branches whose key isn't a translation anywhere
 // in that language's folder, such as an English "draft" branch in a language
-// whose {type} values are translated. Those branches never match. Warnings
-// don't change the exit code, since a select can match names from another
-// category, such as Craft's own app.php.
+// whose {type} values are translated. Those branches never match, unless
+// the placeholder receives a raw value such as an API enum. It also warns
+// about plurals that lost the source's explicit selectors (=1), empty
+// plural category branches (one {}), and ‘ used as an apostrophe. Warnings don't change the exit code.
 //
-// Usage: php check.php <translations-dir> [--missing]
+// Usage: php check.php <translations-dir> [--missing] [--clashes]
 // Needs the intl and mbstring extensions. Exits with 1 when it finds a problem. --missing
-// also lists untranslated keys.
+// also lists untranslated keys. --clashes lists translations shared by keys
+// with different English text, which often means one word for two concepts
+// or a value on the wrong key.
 
 $dir = rtrim($argv[1] ?? '', '/');
 $listMissing = in_array('--missing', $argv, true);
+$listClashes = in_array('--clashes', $argv, true);
+$byValue = [];
 $sources = glob("$dir/en/*.php") ?: [];
 if (!$sources) {
-    fwrite(STDERR, "Usage: php check.php <translations-dir> [--missing]\n");
+    fwrite(STDERR, "Usage: php check.php <translations-dir> [--missing] [--clashes]\n");
     exit(2);
 }
 
@@ -65,26 +70,40 @@ function icuArgs(string $s, bool $all = false, int &$i = 0, bool $nested = false
 }
 
 /**
- * Returns [argument, key] pairs for the branches of every select argument in
- * an ICU message, other than `other`.
+ * Returns [argument, type, key, body] for the branches of every plural,
+ * select, and selectordinal argument in an ICU message.
  */
-function selectKeys(string $s): array
+function branches(string $s): array
 {
-    $keys = [];
-    preg_match_all('/\{\s*(\w+)\s*,\s*select\s*,/u', $s, $m, PREG_OFFSET_CAPTURE);
+    $branches = [];
+    preg_match_all('/\{\s*(\w+)\s*,\s*(plural|select|selectordinal)\s*,/u', $s, $m, PREG_OFFSET_CAPTURE);
     foreach ($m[0] as $n => [$match, $offset]) {
         $i = $offset + strlen($match);
-        while (preg_match('/\G\s*([^\s{}]+)\s*\{/u', $s, $b, 0, $i)) {
+        while (preg_match('/\G\s*(?:offset:\d+\s*)?([^\s{}]+)\s*\{/u', $s, $b, 0, $i)) {
             $i += strlen($b[0]);
+            $start = $i;
             for ($depth = 1; $i < strlen($s) && $depth > 0; $i++) {
                 $depth += ['{' => 1, '}' => -1][$s[$i]] ?? 0;
             }
-            if ($b[1] !== 'other') {
-                $keys[] = [$m[1][$n][0], $b[1]];
-            }
+            $branches[] = [$m[1][$n][0], $m[2][$n][0], $b[1], substr($s, $start, $i - $start - 1)];
         }
     }
-    return $keys;
+    return $branches;
+}
+
+/**
+ * Returns the explicit selectors (=0, =1, and so on) of each plural argument,
+ * keyed by argument name.
+ */
+function explicitSelectors(string $s): array
+{
+    $selectors = [];
+    foreach (branches($s) as [$arg, $type, $key]) {
+        if ($type !== 'select' && str_starts_with($key, '=')) {
+            $selectors[$arg][] = $key;
+        }
+    }
+    return $selectors;
 }
 
 $problems = 0;
@@ -132,10 +151,42 @@ foreach ($sources as $source) {
                 echo "  $issue: $key\n";
                 continue;
             }
-            foreach (selectKeys($value) as [$arg, $selectKey]) {
-                if (!isset($terms[$lang][mb_strtolower($selectKey)])) {
-                    echo "  warning: {{$arg}} select key “{$selectKey}” isn’t a $lang translation: $key\n";
+            foreach (branches($value) as [$arg, $type, $branchKey, $body]) {
+                if ($type === 'select' && $branchKey !== 'other' && !isset($terms[$lang][mb_strtolower($branchKey)])) {
+                    echo "  warning: {{$arg}} select key “{$branchKey}” isn’t a $lang translation: $key\n";
                 }
+                // An empty "one" branch also catches numbers like fr 0 or ru 21,
+                // which then print nothing instead of falling through to "other".
+                if ($type !== 'select' && trim($body) === '' && in_array($branchKey, ['zero', 'one', 'two', 'few', 'many'], true)) {
+                    echo "  warning: empty {{$arg}} branch “{$branchKey}”: $key\n";
+                }
+            }
+            // A translation may drop a plural its language doesn't need, but one
+            // that keeps it has to keep the source's explicit selectors.
+            $own = explicitSelectors($value);
+            $plurals = array_column(array_filter(branches($value), fn($b) => $b[1] !== 'select'), 0);
+            foreach (explicitSelectors($en[$key]) as $arg => $selectors) {
+                if (in_array($arg, $plurals, true) && $lost = array_diff($selectors, $own[$arg] ?? [])) {
+                    echo "  warning: {{$arg}} lost the source’s " . implode(', ', $lost) . " branch: $key\n";
+                }
+            }
+            if (preg_match('/\p{L}‘/u', $value)) {
+                echo "  warning: ‘ used as an apostrophe: $key\n";
+            }
+            if ($listClashes) {
+                $byValue[$lang][mb_strtolower($value)][] = $key;
+            }
+        }
+    }
+}
+if ($listClashes) {
+    echo "== clashes\n";
+    foreach ($byValue as $lang => $values) {
+        foreach ($values as $value => $keys) {
+            // Keys that differ only in case or final punctuation are the same term.
+            $distinct = array_unique(array_map(fn($k) => rtrim(mb_strtolower($k), '.:?!…'), $keys));
+            if (count($distinct) > 1) {
+                echo "$lang  “{$value}”: " . implode(' | ', $keys) . "\n";
             }
         }
     }
