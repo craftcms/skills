@@ -79,7 +79,7 @@ Translates Craft CMS and plugin control panel strings, using the same terms as C
 - Where translation files live, and message categories
 - Choosing terms by meaning, starting from Craft's own translations
 - ICU placeholders, plurals, and selects on values such as `{type}`
-- A check script for missing keys, invalid ICU messages, and dropped placeholders
+- A check script for missing keys, invalid ICU messages, dropped placeholders, and select keys that never match
 - How Craft's own repos sync translations across branches
 
 Craft 6 is still pre-release. When a skill and Craft disagree, the skills trust the installed Craft source first, then the published 6.x docs.

@@ -6,6 +6,12 @@
 // a plugin handle, and so on), checked against the same-named file in every
 // other language folder.
 //
+// It also warns about select branches whose key isn't a translation anywhere
+// in that language's folder, such as an English "draft" branch in a language
+// whose {type} values are translated. Those branches never match. Warnings
+// don't change the exit code, since a select can match names from another
+// category, such as Craft's own app.php.
+//
 // Usage: php check.php <translations-dir> [--missing]
 // Needs the intl extension. Exits with 1 when it finds a problem. --missing
 // also lists untranslated keys.
@@ -58,40 +64,80 @@ function icuArgs(string $s, bool $all = false, int &$i = 0, bool $nested = false
     return $args;
 }
 
-$problems = 0;
-foreach ($sources as $source) {
-$category = basename($source);
-$en = require $source;
-echo "== $category\n";
-foreach (glob("$dir/*/$category") as $file) {
-    $lang = basename(dirname($file));
-    if ($lang === 'en') {
-        continue;
-    }
-    $translations = require $file;
-    $missing = array_diff_key($en, $translations);
-    printf("%-6s %d of %d translated\n", $lang, count($en) - count($missing), count($en));
-    if ($listMissing) {
-        foreach (array_keys($missing) as $key) {
-            echo "  missing: $key\n";
+/**
+ * Returns [argument, key] pairs for the branches of every select argument in
+ * an ICU message, other than `other`.
+ */
+function selectKeys(string $s): array
+{
+    $keys = [];
+    preg_match_all('/\{\s*(\w+)\s*,\s*select\s*,/u', $s, $m, PREG_OFFSET_CAPTURE);
+    foreach ($m[0] as $n => [$match, $offset]) {
+        $i = $offset + strlen($match);
+        while (preg_match('/\G\s*([^\s{}]+)\s*\{/u', $s, $b, 0, $i)) {
+            $i += strlen($b[0]);
+            for ($depth = 1; $i < strlen($s) && $depth > 0; $i++) {
+                $depth += ['{' => 1, '}' => -1][$s[$i]] ?? 0;
+            }
+            if ($b[1] !== 'other') {
+                $keys[] = [$m[1][$n][0], $b[1]];
+            }
         }
     }
-    foreach ($translations as $key => $value) {
-        $issue = null;
-        if (!isset($en[$key])) {
-            $issue = "not in en/$category";
-        } elseif (msgfmt_create('en', $en[$key]) === null) {
-            continue; // The source isn't an ICU message, such as an email body.
-        } elseif (msgfmt_create($lang, $value) === null) {
-            $issue = 'invalid ICU message';
-        } elseif ($lost = array_diff(icuArgs($key), icuArgs($value, true))) {
-            $issue = 'missing placeholder {' . implode('}, {', array_unique($lost)) . '}';
-        }
-        if ($issue) {
-            $problems++;
-            echo "  $issue: $key\n";
-        }
-    }
+    return $keys;
 }
+
+$problems = 0;
+$terms = [];
+foreach ($sources as $source) {
+    $category = basename($source);
+    $en = require $source;
+    echo "== $category\n";
+    foreach (glob("$dir/*/$category") as $file) {
+        $lang = basename(dirname($file));
+        if ($lang === 'en') {
+            continue;
+        }
+        if (!isset($terms[$lang])) {
+            // Every translated string in the language's folder, which select
+            // keys on translated names have to match.
+            $terms[$lang] = [];
+            foreach (glob("$dir/$lang/*.php") as $langFile) {
+                foreach (require $langFile as $value) {
+                    $terms[$lang][mb_strtolower($value)] = true;
+                }
+            }
+        }
+        $translations = require $file;
+        $missing = array_diff_key($en, $translations);
+        printf("%-6s %d of %d translated\n", $lang, count($en) - count($missing), count($en));
+        if ($listMissing) {
+            foreach (array_keys($missing) as $key) {
+                echo "  missing: $key\n";
+            }
+        }
+        foreach ($translations as $key => $value) {
+            $issue = null;
+            if (!isset($en[$key])) {
+                $issue = "not in en/$category";
+            } elseif (msgfmt_create('en', $en[$key]) === null) {
+                continue; // The source isn't an ICU message, such as an email body.
+            } elseif (msgfmt_create($lang, $value) === null) {
+                $issue = 'invalid ICU message';
+            } elseif ($lost = array_diff(icuArgs($key), icuArgs($value, true))) {
+                $issue = 'missing placeholder {' . implode('}, {', array_unique($lost)) . '}';
+            }
+            if ($issue) {
+                $problems++;
+                echo "  $issue: $key\n";
+                continue;
+            }
+            foreach (selectKeys($value) as [$arg, $selectKey]) {
+                if (!isset($terms[$lang][mb_strtolower($selectKey)])) {
+                    echo "  warning: {{$arg}} select key “{$selectKey}” isn’t a $lang translation: $key\n";
+                }
+            }
+        }
+    }
 }
 exit($problems ? 1 : 0);
