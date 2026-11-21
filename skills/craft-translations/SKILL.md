@@ -75,12 +75,14 @@ Translations across the Craft ecosystem should use the same words for the same t
 - **Check for clashes** with other terms in the same file, and with Craft's `app.php` and Commerce's `commerce.php`, since a plugin's strings appear next to theirs. A word that already means something else there is wrong even when it's a fair translation on its own. For example, nl "Bericht" is Message, tr "Genel" is General, and he יוצר is Creator, so none of them work for Entry, Global, or Author. Run `check.php --clashes` to list translations that several different English keys share.
 - **A plugin term that shares an English word with a Craft concept needs its own term** when it means something else: Feed Me's "Passkey" is a token in a URL, not a WebAuthn sign-in key, and a webhook event's "Subject" isn't an email subject.
 - **Check glossaries** when unsure, such as the WordPress locale glossaries at translate.wordpress.org, or the localized docs of the service a plugin integrates (Stripe, Shopify, CKEditor). Flag terms you couldn't confirm, so a native speaker can review them.
-- **Product and system names,** such as "Apple News" or `{system}`, stay Latin and uninflected. In languages with case endings, rephrase around the name (hu "az Apple News szolgáltatásban") rather than suffixing it; tr suffixes go after an apostrophe, as Craft writes "URL'si".
+- **Product and system names,** such as "Apple News" or `{system}`, stay Latin and uninflected. In languages with case endings, rephrase around the name (hu "az Apple News szolgáltatásban") rather than suffixing it; tr suffixes go after an apostrophe, as Craft writes “URL’si”.
 - **Lightswitch values and literals:** reuse the language's "ON Label"/"OFF Label" words for On and Off. Keep `true` and `false` as literals when the user types or configures the value, and translate them otherwise.
 
 ## Quotes and apostrophes
 
-Use each language's style below, which is the majority in Craft's own `app.php` files. Some files also have a minority style, such as “…” in el, sv, and fr-CA, or plain ASCII "…"; use the majority for new strings, and leave existing strings alone unless you're fixing them anyway.
+Use typographic quotation marks and apostrophes, never straight `"` or `'`, in translations and in English source strings alike. Straight ones stay only where they're literal: code (`{{ entry.title }}`), HTML attributes, values a user types or a data file contains, and inch or foot marks.
+
+Use each language's quotation marks. When a string you're editing has another style, change it to this one.
 
 | Quotation marks | Languages |
 |---|---|
@@ -91,17 +93,15 @@ Use each language's style below, which is the majority in Craft's own `app.php` 
 | ”…” | sv |
 | 「…」 | ja |
 
-fr and fr-CA put a space inside « … »; prefer a non-breaking space in fr.
+fr and fr-CA put a non-breaking space (U+00A0) inside « … ». Wrap code, such as `{slug}` in a tip about path variables, in the same backticks as the source rather than quoting it.
 
 Apostrophes:
 
-- Straight `'` (written `\'` in PHP): da, fr, he, it, nl, tr, uk. In uk the apostrophe is a letter (ім'я), not punctuation.
-- Curly ’: cy, en-GB, fr-CA.
-- Languages not listed rarely need one; use ’.
-- he writes acronyms with an ASCII `"` (דוא"ל, מע"מ), never ״.
+- Use ’ (U+2019) in every language, including fr (l’entrée), it, nl, tr (URL’si), and uk, where the apostrophe is a letter (ім’я).
+- he writes acronyms with gershayim ״ (דוא״ל, מע״מ) and abbreviations with geresh ׳ (מקס׳).
 - Never use ‘ (U+2018) as an apostrophe.
 
-In ICU, a straight `'` directly before `{` or `}` starts a quoted section and swallows the placeholder, so use ’ next to placeholders even in straight-apostrophe files. A `'` between letters ("URL's") is safe.
+In ICU, a straight `'` directly before `{` or `}` starts a quoted section, so the placeholder prints literally. ’ never does.
 
 Don't add invisible bidi marks (RLM, LRM) to ar, he, or fa unless a rendered string shows the wrong order, and say so in the pull request.
 
@@ -165,7 +165,8 @@ Run the check script without `--missing`. For each category, it reports keys tha
 - select keys that aren't a translation anywhere in that language's folder, such as an English `draft` branch in a language whose `{type}` values are translated;
 - plurals that lost the source's explicit selectors, such as `=1`;
 - empty plural category branches, such as `one {}`;
-- ‘ used as an apostrophe.
+- ‘ used as an apostrophe;
+- straight quotes or apostrophes outside code spans, HTML tags, and inch or foot marks. Ignore it for literal values, such as a word matched against imported data.
 
 Warnings don't change the exit code, because a plugin's select can match names from Craft's own `app.php`. Add `--clashes` to list translations shared by keys with different English text; most are harmless variants ("Add Group" and "Add a group"), but it's how you find one word used for two concepts. Test selects with `MessageFormatter` too.
 
