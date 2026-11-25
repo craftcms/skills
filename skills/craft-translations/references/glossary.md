@@ -124,7 +124,7 @@ What the Craft terms in control panel strings mean, and the words Craft's own tr
 - **ko:** Author 작성자 (not 저자, a book's author), Post Date 게시 날짜, Notes 메모 (주의 is caution), Item 아이템 (항목 is Entry).
 - **ky:** Trashed "Таштандыда" ("Себет" is Cart).
 - **nb/nn:** Slug "Slug" (not "Lenke", which is Link), Handle "Handle" (not "Kodeord", a password).
-- **nl:** Entry "Vermelding", entry type "vermeldingstype" ("Bericht" is Message, "Inhoud" is Content, "Invoer" is Input). Post Date "Publicatiedatum". A draft is "concept". Handle "Handle" ("Ingang" is an entrance), Preferences "Voorkeuren" ("Eigenschappen" is Properties), Globals "Globale inhoud", Global Set "globale set" ("Algemeen" is General).
+- **nl:** Entry "Item", entries "items", entry type "itemtype". "Item" is neuter: "het item", "dit item", "een nieuw item". Not "Vermelding" (a mention or listing, rejected by Dutch users in [cms#21099](https://github.com/craftcms/cms/discussions/21099)), "Bericht" (Message), "Inhoud" (Content) or "Invoer" (Input). Post Date "Publicatiedatum". A draft is "concept". Handle "Handle" ("Ingang" is an entrance), Preferences "Voorkeuren" ("Eigenschappen" is Properties), Globals "Globale inhoud", Global Set "globale set" ("Algemeen" is General).
 - **pl:** Entry "Wpis" (not "Pozycja"), Tag "Tag" to match "Grupa tagów", Revision "Wersja" (not "Zmiana").
 - **pt:** European Portuguese. Parent "Pai" ("Parente" means a relative), Asset "Recurso", Time (of day) "Hora" ("Tempo" is a duration).
 - **ru:** Slug "Ярлык" (not "Поле динамичных данных"), Tag "Тег" ("Метка" is Label). **uk:** Slug "Частина посилання" (not "Поле змінюваних даних").
@@ -140,4 +140,4 @@ Most `{type}` sentences in Craft's translations either select over Craft's built
 
 ## Not yet confirmed
 
-Native speakers haven't checked these: hr "Dostupno", nl "Vermelding", is "Slóðarheiti", "annálar", "Í loftinu", "Kerfisheiti", "víðvær" and "vistuð útgáfa", tr "Dosya" (WordPress uses "Ortam" for media), he גרסה שמורה, ko 아이템, it "Genitore", sv "Mediefil", cs/sk "soubor"/"súbor" for Asset, pt "Recurso" (also Resources), ky "Таштандыда", and Commerce es Adjustments "ajustes de precio". fr "En ligne" and pl/sk "Online" also translate the system-status toggle "Online", which means the same thing. Raise doubts rather than reverting them silently.
+Native speakers haven't checked these: hr "Dostupno", is "Slóðarheiti", "annálar", "Í loftinu", "Kerfisheiti", "víðvær" and "vistuð útgáfa", tr "Dosya" (WordPress uses "Ortam" for media), he גרסה שמורה, ko 아이템, it "Genitore", sv "Mediefil", cs/sk "soubor"/"súbor" for Asset, pt "Recurso" (also Resources), ky "Таштандыда", and Commerce es Adjustments "ajustes de precio". fr "En ligne" and pl/sk "Online" also translate the system-status toggle "Online", which means the same thing. Raise doubts rather than reverting them silently.
