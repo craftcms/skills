@@ -15,19 +15,35 @@
 // quotes or apostrophes outside code, HTML tags, and inch or foot marks.
 // Warnings don't change the exit code.
 //
-// Usage: php check.php <translations-dir> [--missing] [--clashes]
-// Needs the intl and mbstring extensions. Exits with 1 when it finds a problem. --missing
-// also lists untranslated keys. --clashes lists translations shared by keys
-// with different English text, which often means one word for two concepts
-// or a value on the wrong key.
+// Braces have to balance the way they do in the source; ICU prints a stray
+// "}" as text. Messages that Craft 5 sends to the control panel's JS, through
+// registerTranslations() calls in the source directory, also have to work
+// with Craft.formatMessage() in Craft.js. It splits each {arg, type, options}
+// with JS split(',', 3), which drops everything after a third comma, so
+// a plural or select whose options contain a comma, such as a nested
+// {type, select, …} or {num, number}, throws “Message pattern is invalid”.
+//
+// Usage: php check.php <translations-dir> [--source=<dir>] [--missing] [--clashes]
+// Needs the intl and mbstring extensions. Exits with 1 when it finds a problem.
+// --source is the code to scan for registerTranslations() calls; it defaults
+// to the translations directory's parent, such as src/. --missing also lists
+// untranslated keys. --clashes lists translations shared by keys with
+// different English text, which often means one word for two concepts or
+// a value on the wrong key.
 
 $dir = rtrim($argv[1] ?? '', '/');
 $listMissing = in_array('--missing', $argv, true);
 $listClashes = in_array('--clashes', $argv, true);
+$sourceDir = dirname($dir);
+foreach ($argv as $arg) {
+    if (str_starts_with($arg, '--source=')) {
+        $sourceDir = rtrim(substr($arg, 9), '/');
+    }
+}
 $byValue = [];
 $sources = glob("$dir/en/*.php") ?: [];
 if (!$sources) {
-    fwrite(STDERR, "Usage: php check.php <translations-dir> [--missing] [--clashes]\n");
+    fwrite(STDERR, "Usage: php check.php <translations-dir> [--source=<dir>] [--missing] [--clashes]\n");
     exit(2);
 }
 
@@ -121,6 +137,100 @@ function explicitSelectors(string $s): array
     return $selectors;
 }
 
+/**
+ * Tokenizes a message the way Craft 5's Craft.js _tokenizePattern() does.
+ * Returns false when the braces don't balance. Each argument is
+ * [name, type, options] as JS split(',', 3) leaves it, plus what that
+ * split drops.
+ */
+function jsTokens(string $s): array|false
+{
+    $chars = mb_str_split($s);
+    $tokens = [];
+    $depth = 0;
+    $start = 0;
+    foreach ($chars as $i => $c) {
+        if ($c === '{' && $depth++ === 0) {
+            $start = $i + 1;
+        } elseif ($c === '}' && --$depth === 0) {
+            $parts = explode(',', implode('', array_slice($chars, $start, $i - $start)));
+            $tokens[] = [array_slice($parts, 0, 3), implode(',', array_slice($parts, 3))];
+        } elseif ($depth < 0) {
+            return false;
+        }
+    }
+    return $depth === 0 ? $tokens : false;
+}
+
+/**
+ * Returns why Craft 5's Craft.formatMessage() can't format a message as ICU
+ * does, or null when it can.
+ */
+function jsProblem(string $s): ?string
+{
+    if (($tokens = jsTokens($s)) === false) {
+        return 'unbalanced braces';
+    }
+    foreach ($tokens as [$parts, $dropped]) {
+        $arg = trim($parts[0]);
+        if ($dropped !== '') {
+            return "a comma inside {{$arg}}’s options, after which Craft 5’s JS drops “" . mb_strimwidth(trim($dropped), 0, 40, '…') . '”';
+        }
+        if (!in_array(trim($parts[1] ?? ''), ['select', 'plural'], true) || !isset($parts[2])) {
+            continue;
+        }
+        // Options are selector{message} pairs, each message a message itself.
+        $options = jsTokens($parts[2]);
+        if ($options === false) {
+            return "unbalanced braces in {{$arg}}’s options";
+        }
+        foreach ($options as [$message, $messageDropped]) {
+            if ($messageDropped !== '') {
+                return "more than two commas in an option of {{$arg}}, after which Craft 5’s JS drops “" . mb_strimwidth(trim($messageDropped), 0, 40, '…') . '”';
+            }
+            if ($problem = jsProblem(implode(',', $message))) {
+                return $problem;
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Returns the messages that registerTranslations() calls in PHP and Twig
+ * files under $dir send to the control panel's JS, by category.
+ */
+function jsMessages(string $dir): array
+{
+    $messages = [];
+    if (!is_dir($dir)) {
+        return $messages;
+    }
+    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS));
+    foreach ($files as $file) {
+        $path = $file->getPathname();
+        if (!preg_match('/\.(php|twig)$/', $path) || preg_match('#/(vendor|node_modules|translations)/#', $path)) {
+            continue;
+        }
+        $code = file_get_contents($path);
+        preg_match_all('/registerTranslations\(\s*([\'"])([\w.-]+)\1\s*,\s*\[/', $code, $calls, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        foreach ($calls as $call) {
+            $category = $call[2][0];
+            $offset = $call[0][1] + strlen($call[0][0]);
+            // Read the array's quoted strings up to its closing bracket.
+            while (preg_match('/\G\s*(?:([\'"])((?:\\\\.|(?!\1).)*)\1\s*,?|\])/s', $code, $m, 0, $offset)) {
+                $offset += strlen($m[0]);
+                if (!isset($m[1]) || $m[1] === '') {
+                    break;
+                }
+                $messages[$category][stripcslashes($m[2])] = true;
+            }
+        }
+    }
+    return $messages;
+}
+
+$jsMessages = jsMessages($sourceDir);
 $problems = 0;
 $terms = [];
 foreach ($sources as $source) {
@@ -160,6 +270,10 @@ foreach ($sources as $source) {
                 $issue = 'invalid ICU message';
             } elseif ($lost = array_diff(icuArgs($key), icuArgs($value, true))) {
                 $issue = 'missing placeholder {' . implode('}, {', array_unique($lost)) . '}';
+            } elseif (jsTokens($value) === false && jsTokens($en[$key]) !== false) {
+                $issue = 'unbalanced braces';
+            } elseif (isset($jsMessages[basename($category, '.php')][$key]) && !jsProblem($en[$key]) && $jsProblem = jsProblem($value)) {
+                $issue = "Craft 5’s JS can’t format it: $jsProblem";
             }
             if ($issue) {
                 $problems++;
