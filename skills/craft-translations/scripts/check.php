@@ -22,6 +22,9 @@
 // with JS split(',', 3), which drops everything after a third comma, so
 // a plural or select whose options contain a comma, such as a nested
 // {type, select, …} or {num, number}, throws “Message pattern is invalid”.
+// Craft's own source skips this check once its Craft.js has the fix
+// (craftcms/cms#21126), since its translations ship with that Craft.js.
+// Plugins still get it, since they can run on older Craft 5 releases.
 //
 // Usage: php check.php <translations-dir> [--source=<dir>] [--missing] [--clashes]
 // Needs the intl and mbstring extensions. Exits with 1 when it finds a problem.
@@ -231,6 +234,10 @@ function jsMessages(string $dir): array
 }
 
 $jsMessages = jsMessages($sourceDir);
+$craftJs = "$sourceDir/web/assets/cp/src/js/Craft.js";
+if (is_file($craftJs) && !str_contains(file_get_contents($craftJs), ".split(',', 3)")) {
+    $jsMessages = [];
+}
 $problems = 0;
 $terms = [];
 foreach ($sources as $source) {
