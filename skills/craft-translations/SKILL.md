@@ -46,6 +46,7 @@ Some languages need more than the language name suggests:
 
 - **pt** is European Portuguese: utilizador, ficheiro, guardar. Craft's file still has some Brazilian leftovers (usuário, arquivo, Salvar); don't copy those.
 - **de-CH** isn't de with Swiss spelling. It uses informal "du", «…» quotes, and ss for ß, while de uses formal "Sie" and „…“.
+- **nl** addresses the user formally with "u" (uw, wilt u, kunt u), never "je" or "jouw".
 - **th** has no trailing Latin full stops.
 - **fr** puts a non-breaking space before `: ! ? »`.
 
